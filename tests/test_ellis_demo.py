@@ -1,8 +1,8 @@
-"""Offline checks for opt-in profile context, fresh offers, and confirmation."""
+"""Offline checks for demo profile context, fresh offers, and confirmation."""
 import json
 from time import monotonic
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock, patch
 
 from agents.realtime.testing import ScriptedRealtimeModel
 import pytest
@@ -111,7 +111,7 @@ async def test_live_cue_proposes_one_action_without_executing_it(demo, cue, rule
 
 
 @pytest.mark.parametrize("blocked", ["focus", "user", "response", "audio", "computer", "recent_user",
-                                   "warmup", "idle", "neutral", "face_lost", "camera_off", "expired"])
+                                   "warmup", "idle", "neutral", "unclassified", "face_lost", "camera_off", "expired"])
 async def test_ineligible_context_cannot_propose_or_speak(demo, blocked):
     r = demo.runtime
     r.camera.ingest(packet(["smiling"]), now=100)
@@ -125,8 +125,9 @@ async def test_ineligible_context_cannot_propose_or_speak(demo, blocked):
         r.connected_at = 99
     elif blocked == "idle":
         r.status = "idle"
-    elif blocked in {"neutral", "face_lost"}:
-        r.camera.ingest(packet([], 1, usable=blocked != "face_lost"), now=100.1)
+    elif blocked in {"neutral", "unclassified", "face_lost"}:
+        r.camera.ingest(packet(["neutral"] if blocked == "neutral" else [], 1,
+                               usable=blocked != "face_lost"), now=100.1)
         demo.now[0] = 100.1
     elif blocked == "camera_off":
         r.camera.clear()
@@ -197,29 +198,33 @@ class Socket:
             self.after_context()
 
 
-async def test_real_transport_disables_tools_on_demo_offer(demo):
+@pytest.mark.parametrize("cue,style", [("smiling", "playful"), ("tired_look", "soothing")])
+async def test_real_transport_disables_tools_on_demo_offer(demo, cue, style):
+    from voice_style import style_for_camera
     r = demo.runtime
     model = ProactiveRealtimeModel()
+    model.configure_voice_style(lambda: style_for_camera(r.camera.latest, now=demo.now[0]), "Session instructions")
     socket = Socket()
     model._websocket = socket
     r.session.model = model
-    r.camera.ingest(packet(["smiling"]), now=100)
+    r.camera.ingest(packet([cue]), now=100)
     await demo.loop.step()
     response = socket.messages[-1]["response"]
     assert response["tools"] == [] and response["tool_choice"] == "none"
     assert response["metadata"]["kind"] == "demo_suggestion"
+    assert response["metadata"]["ambi_voice_style"] == style
     assert r.suggestion is not None
     r.worker.perform.assert_not_awaited()
 
 
-@pytest.mark.parametrize("change", ["user_turn", "neutral", "focus", "shutdown", "computer_generation"])
+@pytest.mark.parametrize("change", ["user_turn", "neutral", "unclassified", "focus", "shutdown", "computer_generation"])
 async def test_late_cue_cannot_speak_or_create_a_card_at_socket_commit(demo, change):
     r = demo.runtime
     def interrupt():
         if change == "user_turn":
             r.activity.confirmed_speech()
-        elif change == "neutral":
-            r.camera.ingest(packet([], 1), now=100.1)
+        elif change in {"neutral", "unclassified"}:
+            r.camera.ingest(packet(["neutral"] if change == "neutral" else [], 1), now=100.1)
         elif change == "focus":
             r.focus = True
         elif change == "shutdown":
@@ -265,3 +270,44 @@ def test_demo_autostart_starts_voice_once_on_launch(tmp_path, monkeypatch):
         client.get("/api/bootstrap")
         client.get("/api/bootstrap")
         start.assert_awaited_once_with()
+
+
+@pytest.mark.parametrize("argv,is_demo,autostart", [
+    ([], True, True),
+    (["--demo", "ellis"], True, True),
+    (["--no-autostart"], True, False),
+    (["--no-demo"], False, False),
+])
+def test_server_launch_defaults_to_ellis_with_explicit_normal_mode(tmp_path, monkeypatch, argv, is_demo, autostart):
+    import eval.test.demo as demo_module
+    import server
+
+    ui = tmp_path / "ui/dist"
+    ui.mkdir(parents=True)
+    (ui / "index.html").write_text("<html>Ambi</html>")
+    monkeypatch.setattr(server, "ROOT", tmp_path)
+    monkeypatch.setattr(server, "load_dotenv", lambda *args: None)
+    monkeypatch.setattr(demo_module, "create_demo_app",
+                        lambda **kwargs: create_demo_app(root=tmp_path / "ellis-run", **kwargs))
+    start = AsyncMock()
+    monkeypatch.setattr(AppRuntime, "start", start)
+    serve = Mock()
+    monkeypatch.setattr("uvicorn.run", serve)
+    # The CLI's port probe is the only socket here. TestClient below uses its
+    # in-process ASGI transport; no voice, provider, or desktop work is started.
+    with patch("socket.socket"):
+        server.main(argv)
+    app = serve.call_args.args[0]
+    assert serve.call_args.kwargs["host"] == "127.0.0.1"
+    assert serve.call_args.kwargs["port"] == 8765
+    with TestClient(app) as client:
+        state = client.get("/api/bootstrap").json()["state"]
+        assert state["observations"]["mode"] == ("ellis_demo" if is_demo else "ambient")
+        assert bool(app.state.runtime.demo_profile) is is_demo
+        assert (app.state.memory.get("ambi-project-brief") is None) is is_demo
+        if is_demo:
+            assert any(row["title"] == "Resolve PairMatch issue PM-17" for row in state["memories"])
+        if autostart:
+            start.assert_awaited_once_with()
+        else:
+            start.assert_not_awaited()

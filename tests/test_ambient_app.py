@@ -61,6 +61,19 @@ def test_new_look_cues_are_valid_but_do_not_trigger_proactive_decisions():
     assert AmbientLoop.key(hub.snapshot(now=100.1)) is not None
 
 
+def test_neutral_replaces_recent_expression_without_a_proactive_episode():
+    hub = ObservationHub()
+    camera = FastCamera(hub)
+    camera.ingest(packet(cues=["furrowed_brow"]), now=100)
+    assert AmbientLoop.key(hub.snapshot(now=100)) is not None
+    camera.ingest(packet(1, cues=["neutral"]), now=100.7)
+    snapshot = hub.snapshot(now=100.7)
+    payload = snapshot["camera"]["payload"]
+    assert payload["cues"] == payload["current_cues"] == ["neutral"]
+    assert payload["episode"] is None
+    assert AmbientLoop.key(snapshot) is None
+
+
 async def test_decisions_request_uses_context_and_no_camera_image(tmp_path):
     requests = []
     async def handler(request):
@@ -166,7 +179,7 @@ def test_ellis_demo_uses_existing_cue_and_accept_contract_without_automatic_acti
         assert 'Brave' in suggestion['task'] and 'Happy' in suggestion['task']
         assert client.get('/api/state', headers=headers).json()['suggestion'] is None
         assert client.post('/api/accept', headers=headers, json={'id': suggestion['id']}).status_code == 400
-        assert client.get('/api/cues', headers=headers).json()['schema_version'] == 1
+        assert client.get('/api/cues', headers=headers).json()['schema_version'] == 2
         r.suggestion = {**suggestion, 'expires_at': monotonic() - 1}
         assert client.post('/api/accept', headers=headers, json={'id': suggestion['id']}).status_code == 400
         r.suggestion = {**suggestion, 'expires_at': monotonic() + 10}
@@ -193,7 +206,7 @@ def test_camera_cue_history_is_persisted_and_current_state_stays_fresh(tmp_path)
         assert client.post('/api/camera', headers=headers, json={**data, 'sequence': 2, 'cues': [], 'scores': {}}).json()['stored']
         assert client.post('/api/camera', headers=headers, json={**data, 'sequence': 3, 'cues': ['not_a_cue']}).status_code == 400
         state = client.get('/api/cues', headers=headers).json()
-        assert state['schema_version'] == 1
+        assert state['schema_version'] == 2
         assert state['current']['cues'] == []
         assert len(state['events']) == 2
         assert state['events'][1]['cues'] == ['confused_look', 'sleepy_look']
@@ -207,6 +220,50 @@ def test_camera_cue_history_is_persisted_and_current_state_stays_fresh(tmp_path)
         headers = {'X-Ambi-Token': client.get('/api/bootstrap').json()['token']}
         state = client.get('/api/cues', headers=headers).json()
         assert state['current'] is None and len(state['events']) == 2
+
+
+def test_neutral_round_trips_through_state_websocket_and_durable_history(tmp_path):
+    path = tmp_path / 'db'
+    cue_path = tmp_path / 'cues.sqlite3'
+    with TestClient(create_app(db_path=path, cue_db_path=cue_path, seed=False)) as client:
+        token = client.get('/api/bootstrap').json()['token']
+        headers = {'X-Ambi-Token': token}
+        data = {**packet(cues=['neutral']).model_dump(), 'scores': {'neutral': .92}, 'detection_ms': 600}
+        first = client.post('/api/camera', headers=headers, json=data).json()
+        assert first['accepted'] and first['stored']
+        repeated = client.post('/api/camera', headers=headers, json={**data, 'sequence': 1}).json()
+        assert repeated['accepted'] and not repeated['stored']
+        camera = client.get('/api/state', headers=headers).json()['camera']
+        assert camera['cues'] == ['neutral'] and camera['scores'] == {'neutral': .92}
+        with client.websocket_connect('/ws', subprotocols=['ambi', token],
+                                      headers={'Origin': 'http://127.0.0.1:8765'}) as ws:
+            assert ws.receive_json()['camera']['cues'] == ['neutral']
+        # Existing clients may still send [] for an unclassified frame.
+        assert client.post('/api/camera', headers=headers, json=packet(2).model_dump()).json()['stored']
+        history = client.get('/api/cues', headers=headers).json()
+        assert history['schema_version'] == 2
+        assert history['current']['cues'] == []
+        assert [event['cues'] for event in history['events']] == [[], ['neutral']]
+    with TestClient(create_app(db_path=path, cue_db_path=cue_path, seed=False)) as client:
+        headers = {'X-Ambi-Token': client.get('/api/bootstrap').json()['token']}
+        history = client.get('/api/cues', headers=headers).json()
+        assert history['current'] is None
+        assert history['events'][1]['cues'] == ['neutral']
+        assert history['events'][1]['scores'] == {'neutral': .92}
+
+
+@pytest.mark.parametrize('changes', [
+    {'cues': ['neutral', 'smiling']},
+    {'cues': ['neutral', 'tired_look']},
+    {'usable': False},
+    {'scores': {'neutral': 1.1}},
+])
+def test_neutral_packet_validation(tmp_path, changes):
+    with TestClient(create_app(db_path=tmp_path / 'db', seed=False)) as client:
+        headers = {'X-Ambi-Token': client.get('/api/bootstrap').json()['token']}
+        data = {**packet(cues=['neutral']).model_dump(), 'scores': {'neutral': .9}, **changes}
+        assert client.post('/api/camera', headers=headers, json=data).status_code == 400
+        assert client.get('/api/cues', headers=headers).json()['events'] == []
 
 
 def test_cue_journal_is_bounded_by_age_and_event_count(tmp_path):

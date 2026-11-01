@@ -12,7 +12,11 @@ const rive = new Rive({
   autoplay: true, autoBind: true,
   layout: new Layout({ fit: Fit.Contain, alignment: Alignment.Center }),
   onLoad() { rive.resizeDrawingSurfaceToCanvas(); applyPose(); applyMotion(); },
-  onLoadError() { document.querySelector('#hero-title').textContent = 'Ambi couldn’t load. Please reload.'; },
+  onLoadError() {
+    const title = document.querySelector('#hero-title');
+    title.textContent = 'Ambi couldn’t load. Please reload.';
+    title.classList.remove('sr-only');
+  },
 });
 function applyPose() {
   const pose = rive.viewModelInstance?.enum('pose');
