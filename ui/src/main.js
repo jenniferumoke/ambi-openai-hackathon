@@ -36,7 +36,8 @@ function cameraStatus(status, message) {
   if (status === 'error') toast(message);
 }
 function updateCues(signal) {
-  for (const cue of ['smiling', 'furrowed_brow', 'frowning']) {
+  for (const cue of ['smiling', 'furrowed_brow', 'frowning', 'confused_look',
+                     'concentrating_look', 'irritated_look', 'tired_look', 'sleepy_look']) {
     const score = signal?.usable ? Math.round((signal.scores[cue] || 0) * 100) : null;
     $('#meter-' + cue).style.width = `${score || 0}%`;
     $('#score-' + cue).textContent = score === null ? '—' : `${score}`;
@@ -122,6 +123,10 @@ function render(next) {
   $('#session-options').classList.toggle('hidden', active);
   $('#control-hint').textContent = connected ? 'Say “stop” to cancel computer work. “Bye” ends the session.' : 'Start a session and Ambi will speak first.';
   $('#focus').setAttribute('aria-pressed', String(state.focus));
+  $('#microphone').setAttribute('aria-pressed', String(state.microphone_enabled));
+  $('#microphone').textContent = state.microphone_enabled ? 'Mic on' : 'Mic muted';
+  $('#microphone').disabled = !serverReady;
+  if (connected && !state.microphone_enabled) $('#hero-subtitle').textContent = 'Microphone muted. You can still type a thought below.';
   if (state.error) { $('#setup-warning').textContent = state.error; $('#setup-warning').classList.remove('hidden'); }
   renderMemory(state.memories); renderTranscript(state.transcript); renderSuggestion(state.suggestion);
   const computer = state.observations.computer;
@@ -167,6 +172,7 @@ $('#start').addEventListener('click', () => action(async () => {
   else { $('#setup-warning').classList.add('hidden'); await api('start', { observe_screen: $('#observe-screen').checked }); }
 }));
 $('#focus').addEventListener('click', () => action(() => api('focus', { enabled: !state?.focus })));
+$('#microphone').addEventListener('click', () => action(() => api('microphone', { enabled: !state?.microphone_enabled })));
 $('#stop-task').addEventListener('click', () => action(() => api('stop-task')));
 $('#camera-toggle').addEventListener('click', () => cameraEnabled ? camera.stop() : camera.start());
 $('#message-form').addEventListener('submit', event => { event.preventDefault(); action(async () => { const input = $('#message'); await api('message', { text: input.value }); input.value = ''; }); });

@@ -29,6 +29,7 @@ class AppRuntime:
     def __init__(self, memory):
         self.memory = memory
         self.hub = ObservationHub(mode="ambient")
+        self.hub.unavailable("computer", "session_not_started", status="disabled")
         self.camera = FastCamera(self.hub)
         self.status = "idle"
         self.error = None
@@ -40,6 +41,7 @@ class AppRuntime:
         self.context = lambda: TurnContext()
         self.exit_requested = None
         self.focus = False
+        self.microphone_enabled = True
         self.connected_at = 0
         self.suggestion = None
         self.job = None
@@ -67,10 +69,16 @@ class AppRuntime:
 
     def attach(self, session, activity, audio, exit_requested, context):
         self.session, self.activity, self.audio = session, activity, audio
+        audio.microphone_enabled = self.microphone_enabled
         self.exit_requested, self.context = exit_requested, context
         self.status, self.connected_at = "connected", monotonic()
         self.emit("connected")
         self._decision_task = asyncio.create_task(self._decisions())
+
+    def set_microphone(self, enabled):
+        self.microphone_enabled = bool(enabled)
+        if self.audio:
+            self.audio.microphone_enabled = self.microphone_enabled
 
     async def _decisions(self):
         from openai import AsyncOpenAI
@@ -132,6 +140,10 @@ class AppRuntime:
         except Exception as exc:
             while isinstance(exc, BaseExceptionGroup):
                 exc = exc.exceptions[0]
+            import traceback
+            frames = traceback.extract_tb(exc.__traceback__)
+            location = f"{frames[-1].filename.rsplit('/', 1)[-1]}:{frames[-1].lineno}" if frames else "unknown"
+            print(f"Ambi session failure: {type(exc).__name__} at {location}", flush=True)
             # Provider errors may contain private request data. Surface a type and
             # actionable setup hint rather than the raw response/body.
             self.error = f"Session stopped ({type(exc).__name__}). Check your API access, microphone permission, and audio device."
@@ -203,6 +215,7 @@ class AppRuntime:
                  "speaking" if ctx.audio_playing or ctx.response_active else "ready")
         memories = self.memory.list(limit=50)
         return {"status": self.status, "phase": phase, "error": self.error, "focus": self.focus,
+                "microphone_enabled": self.microphone_enabled,
                 "observations": self.hub.snapshot(context=ctx),
                 "camera": self.camera.latest if self.camera.latest and now - self.camera.latest["received_at"] < 2 else None,
                 "suggestion": self.suggestion, "job": self.job, "transcript": list(self.transcript),

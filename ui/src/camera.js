@@ -12,7 +12,7 @@ export class Camera {
       if (generation !== this.generation) { stream.getTracks().forEach(t => t.stop()); return; }
       this.stream = stream; this.video.srcObject = stream;
       await this.video.play();
-      this.worker = new Worker(new URL('./camera-worker.js', import.meta.url), { type: 'module' });
+      this.worker = new Worker(new URL('./camera-worker.js', import.meta.url));
       this.ready = false; this.busy = false; this.lastAt = 0;
       this.timeout = setTimeout(() => { this.stop(); this.onStatus('error', 'Camera model took too long to load. Try again.'); }, 30000);
       this.worker.onerror = () => { this.stop(); this.onStatus('error', 'Could not start local vision. Check browser support and try again.'); };

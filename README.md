@@ -79,8 +79,12 @@ for a device/permission report.
 5. **End session**, refresh, and show that memory persists. Start again for a fresh
    greeting. **Focus mode** suppresses unsolicited offers while allowing requests.
 
-Cue scores are facial geometry, not emotion probabilities. The classifier can
-correctly choose to stay quiet; a smile alone does not prove work is finished.
+Cue scores are facial geometry, not emotion probabilities. The five look labels
+describe visible combinations such as a raised brow with narrowed eyes, a
+yawn-like movement, or prolonged eye closure; they cannot establish confusion,
+concentration, irritation, tiredness, or sleepiness. They are display-only and
+do not initiate proactive offers. The classifier can correctly choose to stay
+quiet; a smile alone does not prove work is finished.
 
 ## Architecture
 
@@ -118,10 +122,12 @@ calls let computer work run while the conversation continues.
 
 Memory is ignored `data/ambi.sqlite3`: tasks, notes, pasted emails, explicitly
 requested preferences, and source-labelled worker reports. Inferred feelings are
-never persisted. Bounded retrieval prioritizes open tasks and preferences. Saved
-text and sensor observations are context, never authorization. Delete controls
-remove persistent records; start a new voice session to discard old conversational
-context too.
+never saved as personal memory. A separate local cue journal stores visible cue
+changes for up to 24 hours or 500 events, without images; see
+[camera cue API](docs/camera-cues-api.md) for the teammate frontend contract.
+Bounded retrieval prioritizes open tasks and preferences. Saved text and sensor
+observations are context, never authorization. Delete controls remove memory
+records; start a new voice session to discard old conversational context too.
 
 The API key stays in Python; the browser uses a local session token. Audio,
 relevant memory, and enabled screen screenshots go to OpenAI. Camera cues are

@@ -13,4 +13,4 @@ try { await access(model); } catch {
   if (data.length < 1000000) throw new Error('Incomplete face model');
   await writeFile(model, data);
 }
-console.log('Local vision assets ready. Camera frames stay on this device.');
+console.log('Local vision assets ready. Camera cues are computed on this device.');

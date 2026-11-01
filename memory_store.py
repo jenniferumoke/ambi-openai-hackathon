@@ -26,6 +26,7 @@ class MemoryStore:
             body TEXT NOT NULL, source TEXT NOT NULL, status TEXT NOT NULL,
             created_at TEXT NOT NULL, updated_at TEXT NOT NULL
         )""")
+        self.db.execute("CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
         self.db.commit()
         self.path.chmod(0o600)
 
@@ -81,13 +82,16 @@ class MemoryStore:
 
     def seed_project(self):
         """Only the project facts the user supplied; no invented personal inbox."""
-        if self.get("ambi-project-brief"):
+        if self.db.execute("SELECT 1 FROM metadata WHERE key='project_seeded'").fetchone():
             return
-        self.put(item_id="ambi-project-brief", kind="task", title="Get Ambi demo-ready by 5pm",
-                 body="Deadline: 1 November 2026, 17:00 Europe/London. Build a fast camera signal path, "
-                      "persistent memory, a proactive greeting, and a simple UI. Reuse the existing voice "
-                      "and computer-use prototype. Commit and push on a separate branch.",
-                 source="Your hackathon brief")
+        if not self.get("ambi-project-brief"):
+            self.put(item_id="ambi-project-brief", kind="task", title="Get Ambi demo-ready by 5pm",
+                     body="Deadline: 1 November 2026, 17:00 Europe/London. Build a fast camera signal path, "
+                          "persistent memory, a proactive greeting, and a simple UI. Reuse the existing voice "
+                          "and computer-use prototype. Commit and push on a separate branch.",
+                     source="Your hackathon brief")
+        with self.db:
+            self.db.execute("INSERT INTO metadata VALUES ('project_seeded', 'true')")
 
     def close(self):
         self.db.close()

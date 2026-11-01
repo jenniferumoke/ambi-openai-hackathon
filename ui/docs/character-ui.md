@@ -22,4 +22,6 @@ Verification on 2026-11-01:
 - Screenshots: artifacts/character/ (ignored by git).
 - Live backend served the UI and reported API configured. Accessibility, Screen Recording, and microphone authorization were granted. The live session nevertheless reported a sanitized RuntimeError; voice operation remains unverified. Backend code was not changed.
 
-Run from the repository root with `uv run python server.py --open`. The backend currently ignores --open; open http://127.0.0.1:8765 in Chrome separately.
+Run from the repository root with `uv run python server.py --open`. The updated demo backend opens http://127.0.0.1:8765 in your default browser.
+
+Integration with the updated demo branch preserves its microphone control and additional cue elements in the hidden DOM. The backend is unchanged relative to that demo branch, including its existing audio fallback. Live audio with that fallback has not been verified by this UI change. The isolated merge checks passed 206 Python tests (5 skipped), 13 UI tests, and the UI build using the previously downloaded face-model asset. Set `AMBI_TEST_URL` to test another local server URL with `verify-character.mjs`.
