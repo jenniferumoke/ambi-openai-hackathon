@@ -34,7 +34,6 @@
         <div class="character-stage">
           <h1 id="hero-title" class="sr-only">Your Ambi companion</h1>
           <canvas id="ambi" width="340" height="240" role="img" aria-label="Ambi waiting"></canvas>
-          <p id="agent-transcript" role="status" aria-live="polite" aria-label="Ambi transcript"></p>
           <p id="hero-subtitle"></p>
         </div>
         <section class="suggestion hidden" id="suggestion" aria-label="Ambi suggestion" aria-live="polite"></section>
@@ -46,12 +45,17 @@
             <button class="button small" id="focus" aria-pressed="false" disabled>Focus mode</button>
           </div>
           <div class="session-options" id="session-options"><label><input type="checkbox" id="observe-screen" checked /> Include screen context</label></div>
-          <form id="message-form" class="message-form"><label for="message" class="sr-only">Message Ambi</label><input id="message" placeholder="Or leave a thought here…" autocomplete="off" maxlength="4000" required disabled /><button id="send" aria-label="Send message" disabled>↑</button></form>
+          <div id="agent-transcript" role="log" aria-live="polite" aria-relevant="additions text" aria-label="Ambi transcript" tabindex="0"></div>
           <p class="control-hint" id="control-hint">Start a session and Ambi will speak first.</p>
         </div>
-        <details class="conversation-history"><summary>Conversation history</summary><div id="transcript" class="transcript" role="log" aria-label="Conversation" aria-live="polite"></div></details>
+        <p class="status-footer" id="screen-status" role="status">Screen context off</p>
+        <details class="server-logs-panel" open>
+          <summary>Server logs <span id="server-log-status">Connecting…</span></summary>
+          <p id="server-log-error" class="hidden" role="status"></p>
+          <div id="server-logs" role="log" aria-label="Server runtime logs" aria-live="polite" tabindex="0"></div>
+          <div class="server-log-footer"><span>Runtime events · elapsed seconds</span><button class="text-button" id="clear-session-display">Clear logs &amp; transcript</button><button class="text-button" id="copy-server-logs">Copy logs</button></div>
+        </details>
         <section class="activity-card hidden" id="activity-card" aria-label="Computer activity"><div id="activity-content"></div><button class="button danger hidden" id="stop-task">Stop computer task</button></section>
-        <p class="status-footer" id="screen-status">Screen context off</p>
       </section>
 
       <aside class="awareness-panel panel" aria-labelledby="cues-heading">

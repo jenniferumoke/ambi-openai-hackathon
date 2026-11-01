@@ -16,6 +16,22 @@ class ImmediateLoop:
         fn(*args)
 
 
+@pytest.mark.parametrize("error,code", [
+    ({"code": "rate_limit_exceeded", "message": "secret-private-body"}, "rate_limit_exceeded"),
+    (SimpleNamespace(code="session_expired", message="secret-private-body"), "session_expired"),
+    ({"code": "secret-private-body", "message": "secret-private-body"}, "unknown_error"),
+    (RuntimeError("secret-private-body"), "unknown_error"),
+])
+async def test_realtime_failure_keeps_an_actionable_code_without_exposing_provider_body(error, code):
+    from main import handle_realtime_events, RealtimeSessionError
+    async def events():
+        yield SimpleNamespace(type="error", error=error)
+    with pytest.raises(RealtimeSessionError) as failure:
+        await handle_realtime_events(events(), SimpleNamespace())
+    assert failure.value.code == code
+    assert "secret-private-body" not in str(failure.value)
+
+
 @pytest.fixture
 def playback(monkeypatch):
     now = [10.0]

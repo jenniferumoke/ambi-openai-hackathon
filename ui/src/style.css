@@ -52,11 +52,10 @@ h2 { font-family: Georgia, serif; font-size: 28px; line-height: 1.2; font-weight
 .pill { border: 1px solid #d9e3d2; border-radius: 12px; padding: 4px 9px; font-size: 9px; letter-spacing: .8px; white-space: nowrap; }
 .character-stage { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 310px; padding: 16px 0 20px; gap: 12px; }
 #ambi { display: block; width: 100%; max-width: 460px; aspect-ratio: 340 / 240; flex: none; }
-#agent-transcript { font-size: 15px; line-height: 1.6; font-weight: 400; width: 100%; max-height: 7.2em; overflow-y: auto; overflow-wrap: anywhere; white-space: pre-wrap; text-align: center; scrollbar-width: thin; }
-#agent-transcript:empty { display: none; }
+#agent-transcript { width: 100%; min-height: 72px; max-height: 240px; overflow-y: auto; overflow-wrap: anywhere; white-space: pre-wrap; scrollbar-width: thin; margin-top: 18px; padding: 16px 18px; border: 1px solid #dce3d4; border-radius: 18px; background: #ffffff80; color: #47614e; font-size: 14px; line-height: 1.7; }
+#agent-transcript:empty::before { content: 'Ambi’s words will appear here.'; color: #84907f; }
 #hero-subtitle { font-family: Georgia, serif; color: #60765f; font-size: 18px; line-height: 1.5; text-align: center; }
 #hero-subtitle:empty { display: none; }
-#agent-transcript:not(:empty) + #hero-subtitle { font-family: inherit; font-size: 11px; }
 .session-controls { width: 100%; }
 .session-buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .button { min-height: 38px; padding: 9px 14px; border: 1px solid #d3ddcc; border-radius: 22px; color: #315b46; background: transparent; font-size: 12px; line-height: 1.4; }
@@ -70,12 +69,6 @@ h2 { font-family: Georgia, serif; font-size: 28px; line-height: 1.2; font-weight
 .session-options { text-align: center; margin-top: 14px; font-size: 11px; color: #6a786d; }
 .session-options label { display: inline-flex; align-items: center; gap: 6px; }
 input[type="checkbox"] { accent-color: #416e54; }
-.message-form { display: flex; align-items: center; border: 1px solid #dce3d4; border-radius: 24px; background: #ffffff80; padding: 5px 6px 5px 15px; margin-top: 18px; }
-.message-form input { width: 100%; min-width: 0; border: 0; background: transparent; padding: 8px 0; color: #123c38; font-size: 12px; }
-.message-form input:focus-visible { outline: none; }
-.message-form:focus-within { outline: 2px solid #67866a; outline-offset: 2px; }
-.message-form input::placeholder { color: #84907f; }
-.message-form button { border: 0; border-radius: 50%; width: 31px; height: 31px; flex: none; background: #e7eddf; color: #315b46; font-size: 19px; }
 .control-hint { font-size: 10px; color: #738071; text-align: center; line-height: 1.6; margin: 10px 0 14px; }
 .suggestion { background: #eaf0df; border: 1px solid #cedbbf; border-radius: 16px; padding: 18px; margin-bottom: 20px; overflow-wrap: anywhere; }
 .suggestion .eyebrow { color: #52704a; font-size: 9px; }
@@ -84,12 +77,14 @@ input[type="checkbox"] { accent-color: #416e54; }
 .suggestion-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .suggestion-actions .button { font-size: 11px; }
 .setup-warning { background: #f4edda; color: #75633b; font-size: 12px; line-height: 1.6; padding: 12px 14px; border-radius: 12px; margin-bottom: 16px; }
-.conversation-history { margin-top: 2px; font-size: 11px; color: #6a786d; }
-summary { cursor: pointer; padding: 8px 0; }
-.transcript { max-height: 260px; overflow-y: auto; margin-top: 10px; scrollbar-width: thin; }
-.chat-line { padding: 12px; margin-bottom: 8px; background: #f0f3e9; border-radius: 10px; color: #47614e; font-size: 12px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
-.chat-line.user { background: #f4efe3; }
-.speaker { display: block; text-transform: uppercase; letter-spacing: 1px; font-size: 9px; margin-bottom: 4px; }
+.server-logs-panel { min-width: 0; margin-top: 4px; border: 1px solid #dce3d4; border-radius: 12px; overflow: hidden; background: #f6f7f1; }
+.server-logs-panel summary { cursor: pointer; padding: 12px 14px; font-size: 12px; font-weight: 600; }
+#server-log-status { float: right; color: #68786c; font-size: 10px; font-weight: 400; }
+#server-log-error { margin: 0 12px 8px; padding: 9px 10px; border-radius: 7px; background: #fae9e2; color: #8c382a; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+#server-logs { height: 150px; overflow: auto; padding: 10px 14px; background: #173a32; color: #e1eee2; font: 10px/1.7 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; scrollbar-width: thin; }
+#server-logs:empty::before { content: 'Waiting for server events…'; color: #b7ccbc; }
+.server-log-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 14px; color: #68786c; font-size: 9px; }
+.server-log-footer .text-button { padding: 3px 0; font-size: 10px; }
 .activity-card { margin-top: 14px; border-top: 1px solid #e2e6db; padding-top: 16px; overflow-wrap: anywhere; }
 .activity-card h3 { font-size: 13px; margin: 5px 0; }
 .activity-card p { font-size: 12px; line-height: 1.6; color: #6a786d; }

@@ -113,6 +113,61 @@ exhaustive cue enums. Existing journal events and older packets remain valid;
 historical empty cue lists are not retroactively labeled neutral. The camera
 fields in `/api/state` and `/ws` use the same extended enum.
 
+## Diagnose cues without a reply
+
+The browser detector runs independently of voice. Visible cue meters do not mean
+that a voice session is connected. Bootstrap, `/api/state`, and `/ws` now include:
+
+```ts
+proactive: {
+  status: 'paused' | 'waiting' | 'evaluating' | 'offered' | 'error';
+  reason: string;
+}
+```
+
+Reasons describe the current gate, not permission to act. Typical values are
+`session_not_connected`, `focus_mode`, `response_in_progress`, `audio_playing`,
+`computer_task_running`, `recent_user_activity`, `session_warmup`, `cooldown`,
+`pending_suggestion`, `no_fresh_camera`, `no_matching_cue`, `no_relevant_context`,
+`no_task_context`, `already_considered`, `already_offered`, `checking_context`,
+`preparing_offer`, `voice_busy`, `decision_unavailable`, and `retry_backoff`.
+Clients should tolerate additional reason strings. `already_offered` in Ellis
+means that category has used its one offer for this session; ask directly or
+start another session to rehearse the offer again. `concentrating_look` alone
+does not trigger a demo offer. Focus and user/activity gates always take priority.
+
+A held cue keeps its episode while fresh packets support it. After release,
+unclassified frames may retain that episode for four seconds after its last
+supporting frame; confirmed neutral, face loss, and camera-off clear it. A
+two-second packet gap starts a new episode. Normal-mode Decisions failures retry
+with bounded backoff. Busy voice sends retry the already computed decision while
+context remains relevant; a failed/declined send does not consume the cooldown
+or create a suggestion card. The normal 45-second cooldown remains unchanged.
+
+The local camera samples advancing video frames on a timer at up to 15 fps;
+frozen frames cannot count toward a stable cue. Browsers can still throttle
+background tabs. Uploads time out after 1.2 seconds, discard stale data, and keep
+the latest pending packet so a queued smile cannot replace a newer neutral face.
+
+The screen observer samples the **primary display** every two seconds by default;
+model latency can lengthen the interval. Identical newly captured pixels refresh
+the existing observation without another model call, with periodic reanalysis at
+the configured TTL. Changed pixels clear the previous screen context while the
+replacement is analyzed. `observations.computer.reason` distinguishes
+`screen_permission_missing`, `screen_observation_off`, `analysis_unavailable`,
+`model_access_or_configuration`, and `screen_changed`. Screen Recording is needed
+for observation; Accessibility is also needed for actions. Grant these to the
+app launching Python, then quit/reopen it and restart the server.
+
+If `status` is `error`, inspect the error text and `session_error` diagnostic
+event. Realtime errors include an allowlisted `code`, `error_type`, and source
+`location`, without exposing provider error bodies. Restarting the browser alone
+does not reload changed Python code; restart the Terminal server after an update.
+An interruption arriving after a reply finishes can emit `realtime_warning` with
+code `response_cancel_not_active`. This is recoverable; the session stays connected
+and accepts the next turn. Cancellation targets the original reply's response ID.
+The additive `proactive` field does not change the cue journal schema version.
+
 ## Voice delivery from cues
 
 In both modes, Python samples the latest usable camera packet when a reply is

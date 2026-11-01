@@ -73,7 +73,7 @@ visible activity interpretation, not certainty about the user's intentions.
 @dataclass(frozen=True)
 class ScreenObservationSettings:
     model: str = "gpt-6.1-terra"
-    interval: float = 5
+    interval: float = 2
     ttl: float = 20
     request_timeout: float = 15
 
@@ -182,6 +182,7 @@ class ScreenObserver:
         self._last_generation = None
         self._last_context_id = None
         self._valid_until = float("-inf")
+        self._cached_payload = None
 
     def _worker_changed(self, before):
         current = self.context()
@@ -189,6 +190,7 @@ class ScreenObserver:
 
     def _invalidate(self):
         self._valid_until = float("-inf")
+        self._cached_payload = None
         if hasattr(self.analyzer, "reset"):
             self.analyzer.reset()
 
@@ -214,14 +216,26 @@ class ScreenObserver:
                     self._invalidate()
                     self.hub.unavailable("computer", "computer_task_changed", status="paused")
                 elif (frame.fingerprint == self._last_fingerprint and before.computer_generation == self._last_generation
-                      and monotonic() < self._valid_until):
+                      and self._cached_payload is not None and monotonic() < self._valid_until):
                     self.skipped += 1
+                    # This is a NEW capture proving the same pixels are still
+                    # visible. Advance freshness without another model call;
+                    # otherwise pairing with live camera cues fails after 8s.
+                    # _valid_until still bounds reanalysis from the original
+                    # model sample, so a static screen is periodically reviewed.
+                    self.hub.publish("computer", observed_at=frame.captured_at,
+                                     expires_at=frame.captured_at + self.settings.ttl,
+                                     payload=self._cached_payload, now=monotonic())
                     self.log("screen_unchanged", model_request="skipped", skipped=self.skipped)
                 else:
                     if ((self._last_context_id is not None and frame.context_id != self._last_context_id)
                             or (self._last_generation is not None and before.computer_generation != self._last_generation)):
                         self._invalidate()
                         self.hub.unavailable("computer", "task_context_changed")
+                    elif self._last_fingerprint is not None and frame.fingerprint != self._last_fingerprint:
+                        # Do not offer help for the previous screen while the
+                        # replacement is still being interpreted.
+                        self.hub.unavailable("computer", "screen_changed")
                     self.requests += 1
                     async with asyncio.timeout(self.settings.request_timeout):
                         observation = await self.analyzer.analyze(frame)
@@ -247,6 +261,7 @@ class ScreenObserver:
                         self._last_fingerprint = frame.fingerprint
                         self._last_generation = before.computer_generation
                         self._last_context_id = frame.context_id
+                        self._cached_payload = payload
                         self._valid_until = frame.captured_at + self.settings.ttl
                         self.log("screen_sample", sequence=self.requests,
                                  latency_ms=round((now - started) * 1000), **payload)
