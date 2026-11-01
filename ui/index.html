@@ -8,70 +8,95 @@
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 </head>
 <body>
-  <main class="character-stage" aria-label="Ambi companion">
-    <canvas id="ambi" width="340" height="240" role="img" aria-label="Ambi waiting"></canvas>
-    <h2 id="hero-title" aria-live="polite">Here, before you ask.</h2>
-    <button class="button primary" id="start" aria-keyshortcuts="Space" disabled><span class="play-icon">▶</span> Start session</button>
-  </main>
-  <div class="app hidden" hidden inert>
+  <div class="app">
     <header class="topbar">
-      <a class="brand" href="/" aria-label="Ambi home"><span class="brand-mark">a</span> ambi<span class="brand-dot">.</span></a>
-      <div class="top-caption">A little less on your mind.</div>
-      <div class="top-actions"><span class="connection" id="connection"><i></i> Ready when you are</span><button class="button small" id="focus" aria-pressed="false">☾ Focus mode</button></div>
+      <a class="brand" href="/" aria-label="Ambi home">ambi<span>.</span></a>
+      <span class="top-caption">A little less on your mind.</span>
+      <span class="connection" id="connection"><i></i> Connecting to your Mac…</span>
     </header>
     <main class="workspace">
-      <aside class="context-panel">
-        <div class="section-heading"><span class="eyebrow">YOUR CONTEXT</span><button class="icon-button" id="add-memory" aria-label="Add to memory">+</button></div>
-        <h1>Room to<br>think.</h1>
-        <p class="muted introduction">A few things to keep in mind.<br>You decide what stays.</p>
-        <div class="tabs" role="tablist" aria-label="Saved context"><button role="tab" class="selected" aria-selected="true" data-tab="today">Today <span id="task-count">0</span></button><button role="tab" aria-selected="false" data-tab="memory">Memory <span id="memory-count">0</span></button></div>
-        <div id="memory-list" class="memory-list"></div>
-        <button class="text-button" id="add-context">+ Add a task, note, or email excerpt</button>
-        <div class="local-note"><span class="tiny-icon">◇</span><div><strong>Yours to remember.</strong><p>Saved on this Mac. Relevant context is shared with the AI during a session.</p></div></div>
-      </aside>
-      <section class="companion-panel" aria-label="Ambi conversation">
-        <div class="session-top"><span class="eyebrow">YOUR AMBIENT COMPANION</span><span class="pill" id="mode-pill">STANDBY</span></div>
-        <div class="companion-intro" id="companion-intro">
-          <div class="orb-wrap"><div class="orb" id="orb"><div class="orb-inner"></div><span class="orb-eye left"></span><span class="orb-eye right"></span></div><div class="orb-shadow"></div></div>
-
-          <p id="hero-subtitle">I’ll keep the context.<br>You keep your train of thought.</p>
+      <aside class="context-panel panel" aria-labelledby="memory-heading">
+        <div class="section-heading"><span class="eyebrow">YOUR MEMORY</span><button class="icon-button" id="add-memory" aria-label="Add to memory">+</button></div>
+        <h2 id="memory-heading">Kept in mind.</h2>
+        <p class="muted introduction">Your tasks, preferences, and little details. You decide what stays.</p>
+        <div class="tabs" role="tablist" aria-label="Saved context">
+          <button id="tasks-tab" role="tab" aria-selected="false" aria-controls="memory-list" tabindex="-1" data-tab="today">Tasks <span id="task-count">0</span></button>
+          <button id="memory-tab" role="tab" class="selected" aria-selected="true" aria-controls="memory-list" data-tab="memory">Memory <span id="memory-count">0</span></button>
         </div>
-        <div id="transcript" class="transcript" role="log" aria-label="Conversation" aria-live="polite"></div>
-        <div class="suggestion hidden" id="suggestion" aria-live="polite"></div>
+        <div id="memory-list" class="memory-list" role="tabpanel" aria-labelledby="memory-tab" tabindex="0"><p class="empty-state">Connecting to your saved context…</p></div>
+        <button class="text-button" id="add-context">+ Add something to remember</button>
+        <p class="local-note" id="memory-status">Saved on this Mac.</p>
+        <p class="panel-note">Relevant saved context is shared with the AI during a session.</p>
+      </aside>
+
+      <section class="companion-panel" aria-label="Ambi companion">
+        <div class="session-top"><span class="eyebrow">A LITTLE COMPANY</span><span class="pill" id="mode-pill">STANDBY</span></div>
+        <div class="character-stage">
+          <h1 id="hero-title" class="sr-only">Your Ambi companion</h1>
+          <canvas id="ambi" width="340" height="240" role="img" aria-label="Ambi waiting"></canvas>
+          <p id="hero-subtitle"></p>
+        </div>
+        <section class="suggestion hidden" id="suggestion" aria-label="Ambi suggestion" aria-live="polite"></section>
         <div class="session-controls">
           <div class="setup-warning hidden" id="setup-warning" role="status"></div>
-          <button class="button small hidden" id="microphone" aria-pressed="true" aria-label="Microphone enabled">Mic on</button>
-          <div class="session-options" id="session-options"><label><input type="checkbox" id="observe-screen" checked /> Include screen context</label><span>Mac microphone & speakers</span></div>
-          <form id="message-form" class="message-form"><label for="message" class="sr-only">Message Ambi</label><input id="message" placeholder="Or leave a thought here…" autocomplete="off" maxlength="4000" disabled /><button id="send" aria-label="Send message" disabled>↑</button></form>
+          <div class="session-buttons">
+            <button class="button primary" id="start" aria-keyshortcuts="Space" disabled><span class="play-icon">▶</span> Start session</button>
+            <button class="button small" id="microphone" aria-pressed="true" aria-label="Microphone enabled" disabled>Mic on</button>
+            <button class="button small" id="focus" aria-pressed="false" disabled>Focus mode</button>
+          </div>
+          <div class="session-options" id="session-options"><label><input type="checkbox" id="observe-screen" checked /> Include screen context</label></div>
+          <div id="agent-transcript" role="log" aria-live="polite" aria-relevant="additions text" aria-label="Ambi transcript" tabindex="0"></div>
           <p class="control-hint" id="control-hint">Start a session and Ambi will speak first.</p>
         </div>
+        <p class="status-footer" id="screen-status" role="status">Screen context off</p>
+        <details class="server-logs-panel" open>
+          <summary>Server logs <span id="server-log-status">Connecting…</span></summary>
+          <p id="server-log-error" class="hidden" role="status"></p>
+          <div id="server-logs" role="log" aria-label="Server runtime logs" aria-live="polite" tabindex="0"></div>
+          <div class="server-log-footer"><span>Runtime events · elapsed seconds</span><button class="text-button" id="clear-session-display">Clear logs &amp; transcript</button><button class="text-button" id="copy-server-logs">Copy logs</button></div>
+        </details>
+        <section class="activity-card hidden" id="activity-card" aria-label="Computer activity"><div id="activity-content"></div><button class="button danger hidden" id="stop-task">Stop computer task</button></section>
       </section>
-      <aside class="awareness-panel">
-        <div class="section-heading"><span class="eyebrow">IN THE MOMENT</span><span class="mini-dot"></span></div>
+
+      <aside class="awareness-panel panel" aria-labelledby="cues-heading">
+        <div class="section-heading"><span class="eyebrow">IN THE MOMENT</span><span class="mini-dot" aria-hidden="true"></span></div>
+        <h2 id="cues-heading">Camera cues.</h2>
         <div class="camera-card">
-          <div class="camera-preview"><video id="camera-video" autoplay muted playsinline></video><div id="camera-placeholder"><span class="camera-symbol">◉</span><span>A little awareness.<br>Always on your terms.</span></div><span class="camera-badge hidden" id="camera-badge">ON DEVICE</span></div>
-          <div class="camera-footer"><div><strong>Camera cues</strong><p id="camera-status">Camera is off</p></div><button class="toggle" id="camera-toggle" role="switch" aria-checked="false" aria-label="Enable local camera detection"><span></span></button></div>
+          <div class="camera-preview"><video id="camera-video" autoplay muted playsinline aria-label="Your local camera preview"></video><div id="camera-placeholder"><span class="camera-symbol" aria-hidden="true">◉</span><span>Your camera is off</span></div><span class="camera-badge hidden" id="camera-badge">ON DEVICE</span></div>
+          <div class="camera-footer"><div><strong>Local detection</strong><p id="camera-status">Camera is off</p></div><button class="toggle" id="camera-toggle" role="switch" aria-checked="false" aria-label="Enable local camera detection"><span></span></button></div>
         </div>
-        <div class="cue-heading"><span class="eyebrow">VISIBLE CUES</span><span id="camera-latency">—</span></div>
+        <div class="cue-heading"><span class="eyebrow">CLASSIFICATION</span><span id="camera-latency">—</span></div>
+        <p id="cue-summary" class="cue-summary" role="status">Enable your camera to see cues.</p>
         <div class="cue-list" id="cue-list">
+          <div class="cue" title="Low facial movement sustained for a moment"><span>Neutral</span><div class="meter"><i id="meter-neutral"></i></div><span id="score-neutral">—</span></div>
           <div class="cue"><span>Smile</span><div class="meter"><i id="meter-smiling"></i></div><span id="score-smiling">—</span></div>
           <div class="cue"><span>Brow furrow</span><div class="meter"><i id="meter-furrowed_brow"></i></div><span id="score-furrowed_brow">—</span></div>
           <div class="cue"><span>Frown</span><div class="meter"><i id="meter-frowning"></i></div><span id="score-frowning">—</span></div>
+          <div class="cue"><span>Tense expression</span><div class="meter"><i id="meter-tense_expression"></i></div><span id="score-tense_expression">—</span></div>
           <span class="cue-subheading">LOOK PATTERNS</span>
           <div class="cue" title="Sustained uneven brows with eye or mouth tension, or inner-brow lift with lowering"><span>Confused look</span><div class="meter"><i id="meter-confused_look"></i></div><span id="score-confused_look">—</span></div>
-          <div class="cue" title="Sustained brow lowering with narrowed eyes"><span>Concentrating</span><div class="meter"><i id="meter-concentrating_look"></i></div><span id="score-concentrating_look">—</span></div>
+          <div class="cue" title="Sustained brow lowering with narrowed eyes"><span>Concentrating look</span><div class="meter"><i id="meter-concentrating_look"></i></div><span id="score-concentrating_look">—</span></div>
           <div class="cue" title="Lowered brows with a pressed mouth or nose wrinkle"><span>Irritated look</span><div class="meter"><i id="meter-irritated_look"></i></div><span id="score-irritated_look">—</span></div>
           <div class="cue" title="Sustained yawn-like mouth opening, including yawns with open eyes"><span>Tired look</span><div class="meter"><i id="meter-tired_look"></i></div><span id="score-tired_look">—</span></div>
           <div class="cue" title="Both eyes closed for a sustained moment"><span>Sleepy look</span><div class="meter"><i id="meter-sleepy_look"></i></div><span id="score-sleepy_look">—</span></div>
         </div>
-        <p class="cue-explainer">These labels describe visible patterns, not how you feel or how alert you are. Bars show signal strength, not confidence. Camera cues are computed locally; screen context can include the camera preview.</p>
-        <div class="activity-card"><div class="section-heading"><span class="eyebrow">WORKING ALONGSIDE YOU</span></div><div id="activity-content"><span class="activity-icon">↗</span><h3>A hand when it helps.</h3><p>Ambi can notice a task, offer help, and take the next step with you.</p></div><button class="button danger hidden" id="stop-task">Stop computer task</button></div>
-        <div class="status-footer"><span id="screen-status"><i></i> Screen context off</span><span id="memory-status">Local memory ready</span></div>
+        <p id="detection-latency" class="panel-note">Waiting for a stable cue.</p>
+        <p class="cue-explainer">Visible patterns, not feelings or alertness. Bars show signal strength, not confidence. Camera cues are computed locally; screen context can include the camera preview.</p>
       </aside>
     </main>
-    <footer class="page-footer"><span>Made for a more human kind of computing.</span><span>AMBI · PROTOTYPE 01</span></footer>
+    <footer class="page-footer">A little space to think. <span>AMBI · LOCAL COMPANION</span></footer>
   </div>
-  <dialog class="hidden" id="memory-dialog"><form id="memory-form"><div class="dialog-top"><span class="eyebrow">A LITTLE CONTEXT</span><button type="button" class="icon-button" id="close-dialog" aria-label="Close">×</button></div><h2>What should I keep in mind?</h2><label>Type<select id="memory-kind"><option value="task">Task</option><option value="note">Note</option><option value="email">Email excerpt</option><option value="preference">Preference</option></select></label><label>Title<input id="memory-title" required maxlength="160" placeholder="e.g. Prepare the demo walkthrough" /></label><label>Details<textarea id="memory-body" maxlength="8000" rows="5" placeholder="A deadline, useful notes, or a pasted email…"></textarea></label><label>Source<input id="memory-source" maxlength="120" value="You" required /></label><p class="muted">Email excerpts are pasted context; no inbox is connected.</p><button class="button primary" type="submit">Save to memory <span>↗</span></button></form></dialog>
+  <dialog id="memory-dialog" aria-labelledby="dialog-title"><form id="memory-form">
+    <div class="dialog-top"><span class="eyebrow">A LITTLE CONTEXT</span><button type="button" class="icon-button" id="close-dialog" aria-label="Close">×</button></div>
+    <h2 id="dialog-title">What should I keep in mind?</h2>
+    <label>Type<select id="memory-kind"><option value="task">Task</option><option value="note">Note</option><option value="email">Email excerpt</option><option value="preference">Preference</option></select></label>
+    <label>Title<input id="memory-title" required maxlength="160" placeholder="e.g. Prepare the demo walkthrough" /></label>
+    <label>Details<textarea id="memory-body" maxlength="8000" rows="5" placeholder="A deadline, useful notes, or a pasted email…"></textarea></label>
+    <label>Source<input id="memory-source" maxlength="120" value="You" required /></label>
+    <p id="memory-error" class="setup-warning hidden" role="alert"></p>
+    <p class="muted">Email excerpts are pasted context; no inbox is connected.</p>
+    <button class="button primary" type="submit">Save to memory <span>↗</span></button>
+  </form></dialog>
   <div id="toast" class="toast hidden" role="status"></div>
   <script type="module" src="/src/main.js"></script>
 </body>

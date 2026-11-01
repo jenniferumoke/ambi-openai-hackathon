@@ -152,6 +152,66 @@ async def test_observer_skips_identical_frames_only_until_cached_result_expires(
         await asyncio.gather(task, return_exceptions=True)
 
 
+async def test_identical_new_capture_refreshes_pair_alignment_without_a_model_call(monkeypatch):
+    now = [100.0]
+    monkeypatch.setattr("screen_observer.monotonic", lambda: now[0])
+    hub = ObservationHub()
+    refreshed = asyncio.Event()
+    analyzer = SimpleNamespace(analyze=AsyncMock(return_value=description()))
+    capture = SimpleNamespace(capture=AsyncMock(side_effect=lambda: frame(now[0])),
+                              context_id=AsyncMock(return_value="window-a"))
+
+    def log(event, **_):
+        if event == "screen_sample":
+            now[0] = 110
+            hub.publish("camera", observed_at=110, expires_at=112, payload={}, now=110)
+        elif event == "screen_unchanged":
+            refreshed.set()
+
+    observer = ScreenObserver(capture, analyzer, ScreenObservationSettings(interval=.5), hub, log=log)
+    task = asyncio.create_task(observer.run())
+    try:
+        async with asyncio.timeout(2):
+            await refreshed.wait()
+        snapshot = hub.snapshot(now=110)
+        assert snapshot["pair"]["aligned"]
+        assert snapshot["computer"]["observed_at"] == 110
+        assert snapshot["computer"]["expires_at"] == 130
+        assert observer._valid_until == 120  # Periodic reanalysis is still bounded.
+        analyzer.analyze.assert_awaited_once()
+    finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+
+async def test_changed_screen_clears_old_blocker_before_waiting_for_analysis():
+    hub = ObservationHub()
+    checked = asyncio.Event()
+    samples = 0
+    async def capture():
+        nonlocal samples
+        samples += 1
+        return frame(data=f"pixels-{samples}".encode())
+    async def analyze(_):
+        if samples == 2:
+            snapshot = hub.snapshot()["computer"]
+            assert snapshot["status"] == "unavailable"
+            assert snapshot["reason"] == "screen_changed"
+            assert "payload" not in snapshot
+            checked.set()
+        return description()
+    observer = ScreenObserver(SimpleNamespace(capture=capture, context_id=AsyncMock(return_value="window-a")),
+                              SimpleNamespace(analyze=analyze), ScreenObservationSettings(interval=.5), hub,
+                              log=lambda *args, **kwargs: None)
+    task = asyncio.create_task(observer.run())
+    try:
+        async with asyncio.timeout(2):
+            await checked.wait()
+    finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+
 @pytest.mark.parametrize("change", ["window", "worker", "expired"])
 async def test_inflight_analysis_is_discarded_when_its_context_or_freshness_changes(monkeypatch, change):
     now = [0.0]

@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from typing import Literal
 
 Cue = Literal[
-    "smiling", "frowning", "furrowed_brow", "tense_expression",
+    "neutral", "smiling", "frowning", "furrowed_brow", "tense_expression",
     "confused_look", "concentrating_look", "irritated_look", "tired_look", "sleepy_look",
 ]
 ALLOWED_CUES = set(Cue.__args__)
@@ -41,6 +41,8 @@ class CuePacket(BaseModel):
     def validate_unusable_frame(self):
         if not self.usable and (self.cues or self.scores):
             raise ValueError("An unusable camera frame cannot contain cues or scores")
+        if "neutral" in self.cues and set(self.cues) != {"neutral"}:
+            raise ValueError("Neutral cannot be combined with other cues")
         return self
 
 
@@ -65,7 +67,8 @@ class FastCamera:
         now = monotonic() if now is None else now
         if packet.stream_id == self.stream and packet.sequence <= self.sequence:
             return False
-        if packet.stream_id != self.stream:
+        if (packet.stream_id != self.stream
+                or (self.latest is not None and now - self.latest["received_at"] >= 2)):
             self.active = self.recent = ()
             self.episode = None
         self.stream, self.sequence = packet.stream_id, packet.sequence
@@ -79,7 +82,14 @@ class FastCamera:
             return True
         current = tuple(sorted(set(packet.cues)))
         if current and current != self.active:
-            self.recent, self.cue_at, self.episode = current, now - packet.age_ms / 1000, uuid4().hex
+            # Confirmed neutrality replaces earlier expression evidence without
+            # creating an episode that could initiate a proactive offer.
+            self.episode = None if current == ("neutral",) else uuid4().hex
+        if current:
+            # A held expression is still current after a greeting or busy turn.
+            # Retain its identity, but measure the grace period from the LAST
+            # supporting frame rather than silently expiring it at onset + 4s.
+            self.recent, self.cue_at = current, now - packet.age_ms / 1000
         self.active = current
         # Remember a brief event while the face relaxes; never require holding it
         # through an API call. Missing faces clear it immediately.
@@ -124,6 +134,9 @@ class AmbientLoop:
         self.runtime, self.classifier = runtime, classifier
         self.last_key = None
         self.last_offer = float("-inf")
+        self.prepared = None
+        self.retry_at = float("-inf")
+        self.failures = 0
 
     @staticmethod
     def key(snapshot):
@@ -135,50 +148,107 @@ class AmbientLoop:
         event = (data.get("context_id"), data.get("progress")) if data.get("noteworthy") else None
         return (cue, event) if cue or event else None
 
-    async def run(self):
+    async def step(self):
         r = self.runtime
-        while True:
-            await asyncio.sleep(.15)
-            if not r.quiet() or monotonic() - self.last_offer < 45 or monotonic() - r.connected_at < 5:
-                continue
-            snapshot = r.hub.snapshot(context=r.context())
-            key = self.key(snapshot)
-            if key is None or key == self.last_key:
-                continue
-            self.last_key = key
-            turn = r.activity.user_turn_generation
-            generation = r.context().computer_generation
-            started = monotonic()
-            try:
+        now = monotonic()
+        if reason := r.quiet_reason():
+            r.set_proactive("paused", reason)
+            return
+        if now - r.connected_at < 5:
+            r.set_proactive("waiting", "session_warmup")
+            return
+        if r.suggestion and now < r.suggestion["expires_at"]:
+            r.set_proactive("offered", "pending_suggestion")
+            return
+        r.suggestion = None
+        if now - self.last_offer < 45:
+            r.set_proactive("waiting", "cooldown")
+            return
+        snapshot = r.hub.snapshot(context=r.context())
+        key = self.key(snapshot)
+        if key is None or key == self.last_key:
+            self.prepared = None
+            r.set_proactive("waiting", "already_considered" if key else "no_relevant_context")
+            return
+        turn = r.activity.user_turn_generation
+        generation = r.context().computer_generation
+        identity = (key, turn, generation)
+        if self.prepared and self.prepared[0] != identity:
+            self.prepared = None
+        if now < self.retry_at:
+            r.set_proactive("waiting", "retry_backoff")
+            return
+        started = monotonic()
+        try:
+            if self.prepared is None:
+                r.set_proactive("evaluating", "checking_context")
                 async with asyncio.timeout(2.5):
                     action = await self.classifier.decide(snapshot, r.memory)
                 r.emit("decision", action=action, latency_ms=round((monotonic() - started) * 1000))
-                current = r.hub.snapshot(context=r.context())
-                if (action == "none" or not r.quiet() or self.key(current) != key
-                        or turn != r.activity.user_turn_generation or generation != r.context().computer_generation):
-                    continue
-                computer = current["computer"].get("payload", {})
-                tasks = [m for m in r.memory.list() if m["kind"] == "task" and m["status"] == "active"]
-                goal = computer.get("task_goal") or computer.get("task_hypothesis") or (tasks[0]["title"] if tasks else None)
-                if action == "offer_task_help" and not goal:
-                    continue
-                title = "A little help?" if action == "offer_task_help" else "That looks like progress"
-                text = f"Want a hand with {goal[:160]}?" if goal else "Want to take a moment to review what you’ve finished?"
-                suggestion = {"id": uuid4().hex, "title": title, "text": text, "action": action,
-                              "task": f"Help me with this task: {goal}. Use my saved context where relevant." if goal else None,
-                              "expires_at": monotonic() + 30}
+                self.prepared = (identity, action)
+            action = self.prepared[1]
+            current = r.hub.snapshot(context=r.context())
+            if (not r.quiet() or self.key(current) != key
+                    or turn != r.activity.user_turn_generation or generation != r.context().computer_generation):
+                self.prepared = None
+                return
+            if action == "none":
+                self.last_key, self.prepared = key, None
+                self.failures = 0
+                r.set_proactive("waiting", "no_offer_needed")
+                return
+            computer = current["computer"].get("payload", {})
+            tasks = [m for m in r.memory.list() if m["kind"] == "task" and m["status"] == "active"]
+            goal = computer.get("task_goal") or computer.get("task_hypothesis") or (tasks[0]["title"] if tasks else None)
+            if action == "offer_task_help" and not goal:
+                r.set_proactive("waiting", "no_task_context")
+                return
+            title = "A little help?" if action == "offer_task_help" else "That looks like progress"
+            text = f"Want a hand with {goal[:160]}?" if goal else "Want to take a moment to review what you’ve finished?"
+            suggestion = {"id": uuid4().hex, "title": title, "text": text, "action": action,
+                          "task": f"Help me with this task: {goal}. Use my saved context where relevant." if goal else None,
+                          "expires_at": monotonic() + 30}
+
+            def still_relevant():
+                return (r.suggestion is None and r.quiet() and monotonic() < suggestion["expires_at"]
+                        and turn == r.activity.user_turn_generation
+                        and generation == r.context().computer_generation
+                        and self.key(r.hub.snapshot(context=r.context())) == key)
+
+            sent = False
+            if r.session and still_relevant():
+                r.set_proactive("evaluating", "preparing_offer")
+                async with asyncio.timeout(3):
+                    sent = await r.session.model.send_proactive_response(json.dumps({"suggestion": suggestion,
+                        "observations": current, "memory": json.loads(r.memory.brief(max_chars=2500))}), still_relevant)
+            if not sent:
+                r.set_proactive("waiting", "voice_busy")
+                return
+            # A declined/failed send has not used this cue or the cooldown.
+            # Keep the decision cached while retrying a busy voice transport.
+            self.last_key, self.prepared = key, None
+            self.last_offer, self.failures = monotonic(), 0
+            if (r.status == "connected" and not r.focus and r.suggestion is None
+                    and turn == r.activity.user_turn_generation and generation == r.context().computer_generation):
                 r.suggestion = suggestion
-                self.last_offer = monotonic()
                 r.emit("suggestion", **suggestion)
-                def still_relevant():
-                    return (r.suggestion is suggestion and r.quiet()
-                            and turn == r.activity.user_turn_generation
-                            and self.key(r.hub.snapshot(context=r.context())) == key)
-                if r.session and still_relevant():
-                    async with asyncio.timeout(3):
-                        await r.session.model.send_proactive_response(json.dumps({"suggestion": suggestion,
-                            "observations": current, "memory": json.loads(r.memory.brief(max_chars=2500))}), still_relevant)
+            r.set_proactive("offered", "offer_sent")
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            self.failures += 1
+            self.retry_at = monotonic() + min(8, 2 ** min(self.failures - 1, 3))
+            r.set_proactive("error", "decision_unavailable")
+            r.emit("decision_unavailable", reason=type(exc).__name__)
+
+    async def run(self):
+        while True:
+            await asyncio.sleep(.15)
+            try:
+                await self.step()
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                r.emit("decision_unavailable", reason=type(exc).__name__)
+                self.runtime.set_proactive("error", "decision_unavailable")
+                self.runtime.emit("decision_unavailable", reason=type(exc).__name__)
+                await asyncio.sleep(1)

@@ -9,7 +9,7 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 from ambient import AmbientClassifier, AmbientLoop, FastCamera
-from main import ComputerWorker, Settings, run_voice
+from main import ComputerWorker, RealtimeSessionError, Settings, run_voice
 from observation_hub import ObservationHub
 from proactive_controller import TurnActivity, TurnContext
 
@@ -45,6 +45,7 @@ class AppRuntime:
         self.microphone_enabled = True
         self.connected_at = 0
         self.suggestion = None
+        self.proactive = {"status": "paused", "reason": "session_not_connected"}
         self.job = None
         self.events = deque(maxlen=40)
         self.transcript = deque(maxlen=40)
@@ -86,11 +87,27 @@ class AppRuntime:
         async with AsyncOpenAI(max_retries=0, timeout=3) as client:
             await AmbientLoop(self, AmbientClassifier(client, os.getenv("DECISIONS_MODEL", "gpt-6-luna"))).run()
 
-    def quiet(self):
+    def quiet_reason(self):
         ctx = self.context()
-        return (self.status == "connected" and not self.focus and not ctx.user_speaking
-                and not ctx.response_active and not ctx.audio_playing and not ctx.computer_busy
-                and monotonic() - ctx.last_user_activity > 2)
+        for blocked, reason in (
+            (self.status != "connected", "session_not_connected"),
+            (self.focus, "focus_mode"), (ctx.user_speaking, "user_speaking"),
+            (ctx.response_active, "response_in_progress"), (ctx.audio_playing, "audio_playing"),
+            (ctx.computer_busy, "computer_task_running"),
+            (monotonic() - ctx.last_user_activity <= 2, "recent_user_activity"),
+        ):
+            if blocked:
+                return reason
+        return None
+
+    def quiet(self):
+        return self.quiet_reason() is None
+
+    def set_proactive(self, status, reason):
+        state = {"status": status, "reason": reason}
+        if state != self.proactive:
+            self.proactive = state
+            self.emit("proactive_status", **state)
 
     def on_voice_event(self, event):
         if event.type != "raw_model_event":
@@ -118,6 +135,7 @@ class AppRuntime:
             raise ValueError("Add OPENAI_API_KEY to the local .env file, then restart the server.")
         self.status, self.error = "connecting", None
         self.suggestion = None
+        self.set_proactive("paused", "session_not_connected")
         self.hub = ObservationHub(mode="ellis_demo" if self.demo_profile else "ambient")
         self.camera = FastCamera(self.hub)
         self.activity = TurnActivity()
@@ -132,7 +150,9 @@ class AppRuntime:
                            if permissions and all(permissions.values()) else UnavailableWorker())
             screen = observe_screen and permissions.get("Screen Recording", False)
             if not screen:
-                self.hub.unavailable("computer", "screen_permission_or_toggle", status="disabled")
+                reason = "screen_permission_missing" if observe_screen else "screen_observation_off"
+                self.hub.unavailable("computer", reason, status="disabled")
+                self.emit("screen_disabled", reason=reason)
             args = SimpleNamespace(push_to_talk=False, observe=False, observe_computer=screen,
                                    proactive=True, camera_device=0, input_device=None, output_device=None)
             await run_voice(self.worker, settings, args, memory=self.memory, runtime=self)
@@ -147,9 +167,11 @@ class AppRuntime:
             print(f"Ambi session failure: {type(exc).__name__} at {location}", flush=True)
             # Provider errors may contain private request data. Surface a type and
             # actionable setup hint rather than the raw response/body.
-            self.error = f"Session stopped ({type(exc).__name__}). Check your API access, microphone permission, and audio device."
+            self.error = (str(exc) if isinstance(exc, RealtimeSessionError) else
+                          f"Session stopped ({type(exc).__name__}). Check your API access, microphone permission, and audio device.")
             self.status = "error"
-            self.emit("session_error", message=self.error)
+            self.emit("session_error", message=self.error, error_type=type(exc).__name__, location=location,
+                      code=exc.code if isinstance(exc, RealtimeSessionError) else None)
         finally:
             if self._decision_task:
                 self._decision_task.cancel()
@@ -160,7 +182,8 @@ class AppRuntime:
             self.session = self.audio = self.exit_requested = None
             self.suggestion = None
             self.camera.clear()
-            self.hub.unavailable("computer", "session_stopped", status="stopped")
+            if self.hub.snapshot()["computer"]["status"] != "disabled":
+                self.hub.unavailable("computer", "session_stopped", status="stopped")
             self.context = lambda: TurnContext()
             if self.status != "error":
                 self.status = "idle"
@@ -212,11 +235,13 @@ class AppRuntime:
         if self.suggestion and now >= self.suggestion["expires_at"]:
             self.suggestion = None
         ctx = self.context()
+        blocked = self.quiet_reason()
         phase = ("working" if ctx.computer_busy else "listening" if ctx.user_speaking else
                  "speaking" if ctx.audio_playing or ctx.response_active else "ready")
         memories = self.memory.list(limit=50)
         return {"status": self.status, "phase": phase, "error": self.error, "focus": self.focus,
                 "microphone_enabled": self.microphone_enabled,
+                "proactive": {"status": "paused", "reason": blocked} if blocked else dict(self.proactive),
                 "observations": self.hub.snapshot(context=ctx),
                 "camera": self.camera.latest if self.camera.latest and now - self.camera.latest["received_at"] < 2 else None,
                 "suggestion": self.suggestion, "job": self.job, "transcript": list(self.transcript),

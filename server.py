@@ -75,6 +75,8 @@ def create_app(*, db_path=None, cue_db_path=None, seed=True, runtime_factory=App
         try:
             if request.method == "GET":
                 if action == "state":
+                    # Same snapshot as bootstrap and /ws, including the
+                    # proactive status/reason used to explain silent cues.
                     return JSONResponse(runtime.snapshot())
                 if action == "cues":
                     limit = int(request.query_params.get("limit", "50"))
@@ -85,7 +87,7 @@ def create_app(*, db_path=None, cue_db_path=None, seed=True, runtime_factory=App
                     if latest and monotonic() - latest["received_at"] < 2:
                         current = {key: value for key, value in latest.items() if key != "received_at"}
                         current["age_ms"] = round((monotonic() - latest["received_at"]) * 1000)
-                    return JSONResponse({"schema_version": 1, "current": current, "events": cue_store.list(limit)},
+                    return JSONResponse({"schema_version": 2, "current": current, "events": cue_store.list(limit)},
                                         headers={"Cache-Control": "no-store"})
                 return JSONResponse({"error": "Unknown endpoint"}, status_code=404)
             data = await body(request)
@@ -174,7 +176,7 @@ def create_app(*, db_path=None, cue_db_path=None, seed=True, runtime_factory=App
     return app
 
 
-if __name__ == "__main__":
+def main(argv=None):
     import argparse
     import threading
     import time
@@ -184,9 +186,13 @@ if __name__ == "__main__":
     from agents import set_tracing_disabled
     parser = argparse.ArgumentParser(description="Ambi's local app")
     parser.add_argument("--open", action="store_true", help="Open the browser once the local server is ready")
-    parser.add_argument("--demo", choices=["ellis"], help="Load isolated Ellis sample data and start voice")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--demo", choices=["ellis"], default=None,
+                      help="Load isolated Ellis sample data and start voice")
+    mode.add_argument("--no-demo", dest="demo", action="store_const", const=None,
+                      help="Use ordinary saved memory and the normal Decisions policy; wait for Start session")
     parser.add_argument("--no-autostart", action="store_true", help="Wait for Start session in demo mode")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     load_dotenv(ROOT / ".env")
     set_tracing_disabled(True)
     if not (ROOT / "ui" / "dist" / "index.html").exists():
@@ -218,3 +224,7 @@ if __name__ == "__main__":
                     time.sleep(.3)
         threading.Thread(target=open_when_ready, daemon=True).start()
     uvicorn.run(app, host="127.0.0.1", port=8765, access_log=False)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,11 +1,21 @@
 import './style.css';
 import { Camera } from './camera.js';
+import { proactiveStatus, screenStatus } from './observation-status.js';
 import { renderCharacter } from './character.js';
+import { createServerLog } from './server-logs.js';
 
 const $ = selector => document.querySelector(selector);
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-let token, state, tab = 'today', socket, reconnectTimer, memoryFingerprint, transcriptFingerprint, suggestionFingerprint;
-let serverReady = false, sessionWasActive = false, toastTimer, cameraEnabled = false;
+let token, state, tab = 'memory', socket, reconnectTimer, memoryFingerprint, suggestionFingerprint;
+let serverReady = false, sessionWasActive = false, toastTimer, cameraEnabled = false, cueExpiryTimer;
+let transcriptOffsets = null;
+const serverLog = createServerLog();
+const cueLabels = {
+  neutral: 'Neutral', smiling: 'Smile', furrowed_brow: 'Brow furrow', frowning: 'Frown',
+  tense_expression: 'Tense expression', confused_look: 'Confused look',
+  concentrating_look: 'Concentrating look', irritated_look: 'Irritated look',
+  tired_look: 'Tired look', sleepy_look: 'Sleepy look',
+};
 const streamId = crypto.randomUUID();
 let sequence = 0, pendingSignal = null, sendingSignal = false, lastSignalSent = 0, lastCues = '';
 
@@ -13,9 +23,9 @@ function toast(text) {
   $('#toast').textContent = text; $('#toast').classList.remove('hidden');
   clearTimeout(toastTimer); toastTimer = setTimeout(() => $('#toast').classList.add('hidden'), 5500);
 }
-async function api(action, data = {}) {
+async function api(action, data = {}, options = {}) {
   if (!serverReady) throw new Error('The local app is reconnecting. Please try again in a moment.');
-  const response = await fetch('/api/' + action, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Ambi-Token': token }, body: JSON.stringify(data) });
+  const response = await fetch('/api/' + action, { ...options, method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Ambi-Token': token }, body: JSON.stringify(data) });
   const result = await response.json();
   if (!response.ok) throw new Error(result.error || 'Something went wrong. Please try again.');
   return result;
@@ -27,8 +37,10 @@ function cameraStatus(status, message) {
   $('#camera-status').textContent = message;
   $('#camera-toggle').setAttribute('aria-checked', String(cameraEnabled));
   $('#camera-placeholder').classList.toggle('hidden', status === 'active');
+  $('#camera-placeholder > span:last-child').textContent = status === 'loading' ? 'Opening camera…' : status === 'error' ? 'Camera unavailable' : 'Your camera is off';
   $('#camera-badge').classList.toggle('hidden', status !== 'active');
   if (!cameraEnabled) {
+    clearTimeout(cueExpiryTimer);
     pendingSignal = null; lastCues = '';
     updateCues(null);
     if (serverReady) api('camera-off').catch(() => {});
@@ -36,15 +48,25 @@ function cameraStatus(status, message) {
   if (status === 'error') toast(message);
 }
 function updateCues(signal) {
-  for (const cue of ['smiling', 'furrowed_brow', 'frowning', 'confused_look',
-                     'concentrating_look', 'irritated_look', 'tired_look', 'sleepy_look']) {
-    const score = signal?.usable ? Math.round((signal.scores[cue] || 0) * 100) : null;
+  const activeCues = signal?.usable ? (signal.cues ?? []).filter(cue => cue in cueLabels) : [];
+  for (const cue of Object.keys(cueLabels)) {
+    const value = signal?.scores?.[cue];
+    const score = signal?.usable && Number.isFinite(value) ? Math.round(Math.max(0, Math.min(1, value)) * 100) : null;
     $('#meter-' + cue).style.width = `${score || 0}%`;
-    $('#score-' + cue).textContent = score === null ? '—' : `${score}`;
-    $('#meter-' + cue).closest('.cue').classList.toggle('active', Boolean(signal?.cues?.includes(cue)));
+    $('#score-' + cue).textContent = score === null ? '—' : `${score}%`;
+    $('#meter-' + cue).closest('.cue').classList.toggle('active', activeCues.includes(cue));
   }
-  $('#camera-latency').textContent = signal ? `${Math.round(signal.inference_ms)} ms / frame` : '—';
-  if (signal) $('#camera-status').textContent = signal.usable ? (signal.cues.length ? 'A brief cue, noticed' : 'One face · processing locally') : 'Keep one face clearly in view';
+  const summary = !signal ? cameraEnabled ? 'Waiting for fresh camera cues…' : 'Enable your camera to see cues.'
+    : !signal.usable ? 'No clear single face in view.'
+    : activeCues.length ? activeCues.map(cue => cueLabels[cue]).join(' · ') : 'No stable cue yet.';
+  if ($('#cue-summary').textContent !== summary) $('#cue-summary').textContent = summary;
+  $('#cue-summary').classList.toggle('detected', activeCues.length > 0);
+  $('#camera-latency').textContent = Number.isFinite(signal?.inference_ms) ? `${Math.round(signal.inference_ms)} ms / frame` : '—';
+  $('#detection-latency').textContent = activeCues.length && Number.isFinite(signal?.detection_ms)
+    ? `Stable cue detected in ${Math.round(signal.detection_ms)} ms.` : 'Waiting for a stable cue.';
+  if (signal) $('#camera-status').textContent = !signal.usable ? 'Keep one face clearly in view'
+    : signal.cues.includes('neutral') ? 'Neutral expression · processing locally'
+    : signal.cues.length ? 'A brief cue, noticed' : 'One face · processing locally';
 }
 async function flushSignal() {
   if (sendingSignal || !pendingSignal || !serverReady || !cameraEnabled) return;
@@ -56,22 +78,31 @@ async function flushSignal() {
       stream_id: streamId, sequence: ++sequence, usable: signal.usable,
       cues: signal.cues, scores: signal.scores, age_ms: Math.max(0, age),
       inference_ms: signal.inference_ms, detection_ms: signal.detection_ms,
-    });
+    }, { signal: AbortSignal.timeout(1200) });
   } catch { /* A disconnected UI never queues a backlog of frames. */ }
   finally { sendingSignal = false; if (pendingSignal) flushSignal(); }
 }
 const camera = new Camera($('#camera-video'), signal => {
   updateCues(signal);
+  clearTimeout(cueExpiryTimer);
+  cueExpiryTimer = setTimeout(() => {
+    updateCues(null);
+    if (cameraEnabled) $('#camera-status').textContent = 'Waiting for fresh frames…';
+  }, 2000);
   const cues = signal.cues.join(',');
-  const onset = cues && cues !== lastCues;
+  const changed = cues !== lastCues;
   lastCues = cues;
-  // Keep a short positive event while a request is in flight. A neutral frame
-  // may replace it after delivery; a missing face always clears it.
-  if (!signal.usable || onset || !pendingSignal?.cues?.length) pendingSignal = signal;
-  if (onset || !signal.usable || performance.now() - lastSignalSent > 250) flushSignal();
+  // Always send the latest evidence. A queued expression must not overwrite a
+  // neutral frame or a lost face after a slow request finishes.
+  pendingSignal = signal;
+  if (changed || !signal.usable || performance.now() - lastSignalSent > 250) flushSignal();
 }, cameraStatus);
 
-function renderMemory(items) {
+function memoryDate(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+function renderMemory(items = []) {
   $('#task-count').textContent = items.filter(m => m.kind === 'task' && m.status !== 'done').length;
   $('#memory-count').textContent = items.filter(m => m.kind !== 'task').length;
   const selected = items.filter(m => tab === 'today' ? m.kind === 'task' : m.kind !== 'task');
@@ -82,61 +113,75 @@ function renderMemory(items) {
     <article class="memory-item ${item.status === 'done' ? 'done' : ''}">
       <div class="memory-meta"><span>${escape(item.kind)}</span><span>${item.status === 'done' ? 'DONE' : 'SAVED'}</span></div>
       <h3>${escape(item.title)}</h3><button class="delete-memory" data-delete="${escape(item.id)}" aria-label="Delete ${escape(item.title)}">×</button>
-      <p title="${escape(item.body)}">${escape(item.body || item.source)}</p>
+      ${item.body ? `<p class="memory-body">${escape(item.body)}</p>${item.body.length >= 800 ? '<p class="panel-note">Showing up to 800 characters of saved details.</p>' : ''}` : ''}
+      <div class="memory-source"><span>From ${escape(item.source)}</span><time datetime="${escape(item.updated_at)}" title="Last updated">${escape(memoryDate(item.updated_at))}</time></div>
       ${item.kind === 'task' && item.status !== 'done' ? `<button class="complete-memory" data-complete="${escape(item.id)}">✓ Mark complete</button>` : ''}
     </article>`).join('') : `<p class="empty-state">${tab === 'today' ? 'A clear slate.<br>Add something you want a hand with.' : 'Keep a useful note, a preference,<br>or a little context for later.'}</p>`;
-  $('#memory-status').textContent = `${items.length} ${items.length === 1 ? 'item' : 'items'} in local memory`;
+  $('#memory-status').textContent = `${items.length} ${items.length === 1 ? 'item' : 'items'} shown · saved on this Mac`;
 }
-function renderTranscript(items) {
-  const fingerprint = JSON.stringify(items);
-  if (fingerprint === transcriptFingerprint) return;
-  transcriptFingerprint = fingerprint;
-  const box = $('#transcript');
+function renderAgentTranscript(items = []) {
+  const box = $('#agent-transcript');
+  const text = items.filter(item => item.role === 'assistant')
+    .map(item => item.text.slice(transcriptOffsets?.get(item.id) ?? 0)).filter(Boolean).join('\n\n');
+  if (box.textContent === text) return;
   const atBottom = box.scrollHeight - box.clientHeight - box.scrollTop < 60;
-  box.innerHTML = items.map(item => `<div class="chat-line ${item.role === 'user' ? 'user' : 'assistant'}"><span class="speaker">${item.role === 'user' ? 'You' : 'Ambi'}</span>${escape(item.text)}</div>`).join('');
+  box.textContent = text;
   if (atBottom) box.scrollTop = box.scrollHeight;
+}
+function renderServerLogs(next) {
+  const box = $('#server-logs');
+  const text = serverLog.update(next.events);
+  if (box.textContent !== text) {
+    const atBottom = box.scrollHeight - box.clientHeight - box.scrollTop < 40;
+    box.textContent = text;
+    if (atBottom) box.scrollTop = box.scrollHeight;
+  }
+  $('#server-log-status').textContent = `${next.status} · ${next.phase}`;
+  $('#server-log-error').textContent = next.error || '';
+  $('#server-log-error').classList.toggle('hidden', !next.error);
 }
 function renderSuggestion(item) {
   const fingerprint = JSON.stringify(item);
   if (suggestionFingerprint === fingerprint) return;
   suggestionFingerprint = fingerprint;
   $('#suggestion').classList.toggle('hidden', !item);
-  $('#suggestion').innerHTML = item ? `<strong>✧ ${escape(item.title)}</strong><p>${escape(item.text)}</p><div class="suggestion-actions">${item.task ? `<button class="button" data-accept="${escape(item.id)}">Yes, help me ↗</button>` : ''}<button class="button" data-dismiss="${escape(item.id)}">Not now</button></div>` : '';
+  $('#suggestion').innerHTML = item ? `<span class="eyebrow">A THOUGHT FROM AMBI</span><h3>${escape(item.title)}</h3><p>${escape(item.text)}</p><div class="suggestion-actions">${item.task ? `<button class="button primary" data-accept="${escape(item.id)}">Yes, help me ↗</button>` : ''}<button class="button" data-dismiss="${escape(item.id)}">${item.task ? 'Not now' : 'Got it'}</button></div>` : '';
 }
 function render(next) {
   state = next;
   renderCharacter(state);
+  renderServerLogs(state);
   const active = ['connected', 'connecting', 'stopping'].includes(state.status);
   const connected = state.status === 'connected';
+  renderAgentTranscript(state.transcript);
   if (sessionWasActive && !active && cameraEnabled) camera.stop();
   sessionWasActive = active;
-  $('.app').classList.toggle('connected-view', active || Boolean(state.transcript.length));
   $('#connection').classList.toggle('online', connected);
   $('#connection').innerHTML = `<i></i> ${escape(connected ? 'Right here with you' : state.status === 'connecting' ? 'Connecting…' : state.status === 'error' ? 'Needs attention' : 'Ready when you are')}`;
   $('#mode-pill').textContent = state.focus ? 'FOCUS' : connected ? state.phase.toUpperCase() : state.status === 'connecting' ? 'CONNECTING' : 'STANDBY';
-  $('#orb').className = `orb ${connected ? state.phase : ''}`;
-  $('#hero-title').textContent = connected ? ({ ready: 'Go ahead. I’m here.', speaking: 'A thought for you.', listening: 'I’m listening.', working: 'Taking a little off your plate.' }[state.phase]) : state.status === 'connecting' ? 'Getting settled in…' : 'Here, before you ask.';
-  $('#hero-subtitle').innerHTML = connected ? state.focus ? 'Quiet company. I’ll respond when you ask.' : 'Speak naturally, or type a thought below.' : 'I’ll keep the context.<br>You keep your train of thought.';
+  $('#hero-subtitle').textContent = connected ? state.focus ? 'Quiet company. I’ll respond when you ask.' : 'Speak naturally.' : '';
   $('#start').innerHTML = state.status === 'stopping' ? 'Stopping…' : active ? '■ End session' : '<span class="play-icon">▶</span> Start session';
   $('#start').disabled = state.status === 'stopping' || !serverReady;
-  $('#message').disabled = $('#send').disabled = !connected;
   $('#session-options').classList.toggle('hidden', active);
-  $('#control-hint').textContent = connected ? 'Say “stop” to cancel computer work. “Bye” ends the session.' : 'Start a session and Ambi will speak first.';
+  $('#control-hint').textContent = proactiveStatus(state);
   $('#focus').setAttribute('aria-pressed', String(state.focus));
+  $('#focus').disabled = !serverReady;
   $('#microphone').setAttribute('aria-pressed', String(state.microphone_enabled));
+  $('#microphone').setAttribute('aria-label', state.microphone_enabled ? 'Microphone enabled' : 'Microphone muted');
   $('#microphone').textContent = state.microphone_enabled ? 'Mic on' : 'Mic muted';
   $('#microphone').disabled = !serverReady;
-  if (connected && !state.microphone_enabled) $('#hero-subtitle').textContent = 'Microphone muted. You can still type a thought below.';
+  if (connected && !state.microphone_enabled) $('#hero-subtitle').textContent = 'Microphone muted. Unmute to speak with Ambi.';
   if (state.error) { $('#setup-warning').textContent = state.error; $('#setup-warning').classList.remove('hidden'); }
-  renderMemory(state.memories); renderTranscript(state.transcript); renderSuggestion(state.suggestion);
-  const computer = state.observations.computer;
-  $('#screen-status').innerHTML = `<i></i> ${computer.status === 'available' ? 'Screen context active' : computer.status === 'waiting' ? 'Reading the room…' : computer.status === 'paused' ? 'Screen observer paused' : 'Screen context off'}`;
+  renderMemory(state.memories); renderSuggestion(state.suggestion);
+  const computer = state.observations?.computer ?? {};
+  $('#screen-status').innerHTML = `<i></i> ${escape(screenStatus(computer))}`;
   const job = state.job;
+  $('#activity-card').classList.toggle('hidden', !job && computer.status !== 'available');
   $('#stop-task').classList.toggle('hidden', job?.status !== 'running');
   if (job) {
     $('#activity-content').innerHTML = `<span class="activity-icon">${job.status === 'running' ? '↗' : job.status === 'completed' ? '✓' : '−'}</span><h3>${escape(job.status === 'running' ? 'On it.' : job.status === 'completed' ? 'Worker finished' : 'Task stopped')}</h3><p>${escape(job.task)}</p>${job.result ? `<p>${escape(job.result)}</p>` : '<p>You can keep talking while I work.</p>'}`;
   } else if (computer.status === 'available') {
-    $('#activity-content').innerHTML = `<span class="activity-icon">↗</span><h3>Following your context</h3><p>${escape(computer.payload.visible_activity)}</p>`;
+    $('#activity-content').innerHTML = `<span class="activity-icon">↗</span><h3>Following your context</h3><p>${escape(computer.payload?.visible_activity ?? 'Screen context is available.')}</p>`;
   }
 }
 
@@ -145,22 +190,32 @@ async function connect() {
   try {
     const response = await fetch('/api/bootstrap', { cache: 'no-store' });
     if (!response.ok) throw new Error('Local app is unavailable');
-    const data = await response.json(); token = data.token; serverReady = true;
-    const missing = Object.entries(data.permissions).filter(([, granted]) => !granted).map(([name]) => name);
-    const warning = !data.api_configured ? 'Add your OpenAI API key to .env and restart the local server to enable voice. Memory and local camera detection are available now.' : missing.length ? `For computer help, allow ${missing.join(' and ')} for your terminal in macOS Privacy & Security, then restart Ambi. Voice and memory are still available.` : '';
+    const data = await response.json();
+    if (token && token !== data.token) serverLog.reset();
+    token = data.token; serverReady = true;
+    // Start with an empty stream, then preserve new speech across reconnects.
+    transcriptOffsets ??= new Map(data.state.transcript.filter(item => item.role === 'assistant')
+      .map(item => [item.id, item.text.length]));
+    const warning = !data.api_configured ? 'Add your OpenAI API key to .env and restart the local server to enable voice. Memory and local camera detection are available now.' : '';
     $('#setup-warning').textContent = warning; $('#setup-warning').classList.toggle('hidden', !warning);
     render(data.state);
     socket = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`, ['ambi', token]);
     socket.onmessage = ({ data }) => render(JSON.parse(data));
     socket.onclose = () => {
       serverReady = false; $('#start').disabled = true;
+      for (const selector of ['#focus', '#microphone']) $(selector).disabled = true;
+      renderSuggestion(null);
       $('#connection').innerHTML = '<i></i> Reconnecting…';
       $('#connection').classList.remove('online');
+      $('#server-log-status').textContent = 'Reconnecting…';
       reconnectTimer = setTimeout(connect, 2000);
     };
   } catch {
     serverReady = false; $('#start').disabled = true;
+    for (const selector of ['#focus', '#microphone']) $(selector).disabled = true;
+    renderSuggestion(null);
     $('#connection').innerHTML = '<i></i> Local app offline';
+    $('#server-log-status').textContent = 'Server offline';
     $('#setup-warning').textContent = 'Start the local Ambi server, then this page will reconnect automatically.';
     $('#setup-warning').classList.remove('hidden');
     reconnectTimer = setTimeout(connect, 2500);
@@ -175,18 +230,55 @@ $('#focus').addEventListener('click', () => action(() => api('focus', { enabled:
 $('#microphone').addEventListener('click', () => action(() => api('microphone', { enabled: !state?.microphone_enabled })));
 $('#stop-task').addEventListener('click', () => action(() => api('stop-task')));
 $('#camera-toggle').addEventListener('click', () => cameraEnabled ? camera.stop() : camera.start());
-$('#message-form').addEventListener('submit', event => { event.preventDefault(); action(async () => { const input = $('#message'); await api('message', { text: input.value }); input.value = ''; }); });
-document.querySelectorAll('[data-tab]').forEach(button => button.addEventListener('click', () => {
-  tab = button.dataset.tab;
-  document.querySelectorAll('[data-tab]').forEach(b => { b.classList.toggle('selected', b === button); b.setAttribute('aria-selected', String(b === button)); });
-  if (state) renderMemory(state.memories);
+$('#clear-session-display').addEventListener('click', () => {
+  transcriptOffsets = new Map((state?.transcript ?? []).map(item => [item.id, item.text.length]));
+  serverLog.clear(state?.events);
+  renderAgentTranscript(state?.transcript);
+  if (state) renderServerLogs(state);
+  toast('Logs and transcript cleared from this view.');
+});
+$('#copy-server-logs').addEventListener('click', () => action(async () => {
+  const text = [$('#server-log-status').textContent, $('#server-log-error').textContent, $('#server-logs').textContent].filter(Boolean).join('\n');
+  await navigator.clipboard.writeText(text);
+  toast('Server logs copied.');
 }));
-const openMemory = () => { $('#memory-dialog').showModal(); $('#memory-title').focus(); };
+function selectMemoryTab(value) {
+  tab = value;
+  document.querySelectorAll('[data-tab]').forEach(button => {
+    const selected = button.dataset.tab === tab;
+    button.classList.toggle('selected', selected);
+    button.setAttribute('aria-selected', String(selected));
+    button.tabIndex = selected ? 0 : -1;
+    if (selected) $('#memory-list').setAttribute('aria-labelledby', button.id);
+  });
+  if (state) renderMemory(state.memories);
+}
+document.querySelectorAll('[data-tab]').forEach(button => {
+  button.addEventListener('click', () => selectMemoryTab(button.dataset.tab));
+  button.addEventListener('keydown', event => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    selectMemoryTab(event.key === 'Home' ? 'today' : event.key === 'End' ? 'memory' : tab === 'today' ? 'memory' : 'today');
+    $(`[data-tab="${tab}"]`).focus();
+  });
+});
+const openMemory = () => { $('#memory-error').classList.add('hidden'); $('#memory-dialog').showModal(); $('#memory-title').focus(); };
 $('#add-memory').addEventListener('click', openMemory); $('#add-context').addEventListener('click', openMemory);
 $('#close-dialog').addEventListener('click', () => $('#memory-dialog').close());
 $('#memory-form').addEventListener('submit', event => { event.preventDefault(); action(async () => {
-  await api('memory', { kind: $('#memory-kind').value, title: $('#memory-title').value, body: $('#memory-body').value, source: $('#memory-source').value });
-  $('#memory-dialog').close(); $('#memory-title').value = ''; $('#memory-body').value = ''; toast('Kept in mind.');
+  const button = $('#memory-form button[type="submit"]');
+  if (button.disabled) return;
+  button.disabled = true;
+  $('#memory-error').classList.add('hidden');
+  try {
+    const kind = $('#memory-kind').value;
+    await api('memory', { kind, title: $('#memory-title').value, body: $('#memory-body').value, source: $('#memory-source').value });
+    selectMemoryTab(kind === 'task' ? 'today' : 'memory');
+    $('#memory-dialog').close(); $('#memory-form').reset(); toast('Kept in mind.');
+  } catch (error) {
+    $('#memory-error').textContent = error.message;
+    $('#memory-error').classList.remove('hidden');
+  } finally { button.disabled = false; }
 }); });
 $('#memory-list').addEventListener('click', event => action(async () => {
   const remove = event.target.closest('[data-delete]'), complete = event.target.closest('[data-complete]');
@@ -195,8 +287,16 @@ $('#memory-list').addEventListener('click', event => action(async () => {
 }));
 $('#suggestion').addEventListener('click', event => action(async () => {
   const accept = event.target.closest('[data-accept]'), dismiss = event.target.closest('[data-dismiss]');
-  if (accept) await api('accept', { id: accept.dataset.accept });
-  if (dismiss) await api('dismiss', { id: dismiss.dataset.dismiss });
+  if (!accept && !dismiss) return;
+  const buttons = [...$('#suggestion').querySelectorAll('button')];
+  if (buttons.some(button => button.disabled)) return;
+  buttons.forEach(button => { button.disabled = true; });
+  try {
+    if (accept) await api('accept', { id: accept.dataset.accept });
+    if (dismiss) await api('dismiss', { id: dismiss.dataset.dismiss });
+    // Only clear the offer that was acted on; a newer snapshot may replace it.
+    if ((accept || dismiss).isConnected) renderSuggestion(null);
+  } finally { buttons.forEach(button => { button.disabled = false; }); }
 }));
 window.addEventListener('pagehide', () => { camera.stop(); socket?.close(); });
 connect();

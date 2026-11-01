@@ -11,11 +11,13 @@ its markup, CSS, and local component state.
 - `server.py` defines HTTP routes, WebSocket transport, token checks, origin
   checks, and the server lifecycle.
 - `app_runtime.py` owns voice session state and the `/api/state` snapshot.
+- `voice_style.py` maps fresh current camera cues to per-reply delivery;
+  `voice_realtime.py` applies the instructions and local speech attenuation.
 - `ambient.py` defines `CuePacket`, live camera state, and proactive Decisions
   gating. `cue_store.py` defines the durable cue journal.
 - `memory_store.py` defines durable user memory and its validation.
 - `eval/test/ellis.json` and `eval/test/demo.py` define the opt-in fictional Ellis
-  demo profile and isolated workspace. Demo data does not prescribe responses.
+  demo profile and isolated workspace. It supplies data, not scripted responses.
 - `observation_hub.py` defines the live camera and computer observation shape;
   `screen_observer.py` defines the tentative computer observation payload.
 - `ui/src/camera-worker.js` and `ui/src/cue-filter.js` implement the current
@@ -35,6 +37,8 @@ design. There is no account or multi-user API.
 - Install `uv`, Python 3.12, and Node.js 22 or newer. From the repository root,
   `./scripts/start.sh` syncs locked Python dependencies, installs UI packages if
   needed, builds the test UI, and starts `server.py --open` on port 8765.
+  Use `--demo ellis` for isolated sample data; add `--no-autostart` to
+  wait for Start session. Normal and sample sessions share Decisions behavior.
 - Put `OPENAI_API_KEY` in the ignored root `.env` for voice, Decisions, and
   computer work. Do not expose it to a browser. Camera cues and local memory
   can work without it. `.env.example` lists configuration knobs.
@@ -116,7 +120,7 @@ read the next snapshot.
 | --- | --- | --- |
 | `GET bootstrap` | None | Token, key-present flag, permissions, full state. No token required. |
 | `GET state` | None | Full live snapshot. |
-| `GET cues` | `limit=1..100`, default 50 | `{schema_version:1,current,events}`; see camera section. |
+| `GET cues` | `limit=1..100`, default 50 | `{schema_version:2,current,events}`; see camera section. |
 | `POST start` | `{ "observe_screen": true }` | Starts voice asynchronously. Screen observation defaults on but requires macOS permission. Requires `OPENAI_API_KEY`; missing key returns 400. A repeated start while one is active is a no-op. |
 | `POST stop` | `{}` | Ends voice, observer, and computer work; clears live camera state. Watch for `idle`. |
 | `POST stop-task` | `{}` | Stops an active computer task; earlier desktop actions are not undone. No-op when none runs. |
@@ -143,7 +147,7 @@ unknown observation payloads defensively. The stable top-level shape is:
 
 ```ts
 type CueName =
-  | 'smiling' | 'frowning' | 'furrowed_brow' | 'tense_expression'
+  | 'neutral' | 'smiling' | 'frowning' | 'furrowed_brow' | 'tense_expression'
   | 'confused_look' | 'concentrating_look' | 'irritated_look'
   | 'tired_look' | 'sleepy_look';
 
@@ -165,6 +169,10 @@ type AmbiState = {
   error: string | null;
   focus: boolean;
   microphone_enabled: boolean;
+  proactive: {
+    status: 'paused' | 'waiting' | 'evaluating' | 'offered' | 'error';
+    reason: string;
+  };
   camera: null | {
     usable: boolean; cues: CueName[]; scores: Partial<Record<CueName, number>>;
     inference_ms: number; detection_ms: number; received_at: number;
@@ -197,6 +205,18 @@ can remain visible across voice sessions and disappears on server restart. The
 snapshot exposes only the latest 12 runtime `events`; these are diagnostic, not
 a durable audit log. A `job` can also remain in a later snapshot after it ends.
 
+`proactive` explains why a detected cue has not led to speech. Its reason can
+identify session/focus/activity gates, warmup, cooldown, pending suggestions,
+missing fresh camera or task context, `voice_busy`, `retry_backoff`, or
+`already_offered` from older session diagnostics. Display
+unknown reasons defensively. It is diagnostic state, never action permission.
+Transitions also emit `proactive_status` events. Realtime failures expose an
+allowlisted provider code in `session_error`, plus error type and source location;
+provider error bodies are not exposed. A late spoken interruption may receive
+`response_cancel_not_active` after the reply has already finished. This is a
+nonfatal `realtime_warning`: the session remains connected for the next turn.
+Cancellation targets the interrupted response ID so it cannot stop a newer reply.
+
 **Time units matter:** `received_at`, `expires_at`, `started_at`, `events.at`,
 and the observation hub's `observed_at`/`expires_at`/`cue_at` are Python
 `time.monotonic()` seconds. They are process-local and must **not** be parsed as
@@ -211,7 +231,8 @@ Each source is `{status,reason,observed_at?,expires_at?,payload?}`. Status may b
 on source lifecycle. `pair` is `{aligned,skew_seconds,reason}`; `runtime` contains
 user/response/audio/computer activity flags and generation numbers. When
 `observations.camera.status === 'available'`, its payload includes
-`cues` (recent cues held for about four seconds), `current_cues` (this frame),
+`cues` (held while supported, then for four seconds after the last supporting
+frame), `current_cues` (this frame),
 `episode`, `cue_at`, and `interpretation`. These differ from `state.camera`,
 which is the latest raw packet. When `observations.computer.status ===
 'available'`, its tentative payload can include `visible_activity`, `surface`,
@@ -231,8 +252,8 @@ type CuePacket = {
   stream_id: string;       // 1–64 chars; new ID per page load/camera stream
   sequence: number;        // integer >= 0; strictly increasing per stream
   usable: boolean;
-  cues: CueName[];         // max 9; [] when no stable cue
-  scores: Partial<Record<CueName, number>>; // max 9 keys; finite 0..1 strengths
+  cues: CueName[];         // max 10; [] when no stable cue; neutral must stand alone
+  scores: Partial<Record<CueName, number>>; // max 10 keys; finite 0..1 strengths
   age_ms: number;          // 0..1500, frame age at send time
   inference_ms: number;    // 0..5000
   detection_ms: number;    // 0..600000; time to stable cue
@@ -246,6 +267,10 @@ run only one active camera producer at a time. The test UI creates a UUID once
 per page load and increments `sequence` for each POST. Its cue filter requires
 three supporting frames in a continuous candidate, resets after frame gaps over
 500 ms or face loss, and requires longer holds for the five composite look cues.
+Sampling uses a bounded timer and only advancing video frames, so a frozen
+preview cannot manufacture supporting frames. Browsers may still throttle hidden
+tabs; stale frames are discarded. Camera uploads time out after 1.2 seconds and
+keep only the latest pending packet, including neutral or unusable transitions.
 Near-threshold dips up to 150 ms preserve pending evidence; neutral frames clear
 it immediately. `tired_look` includes sustained yawn-like opening with bilateral
 eye narrowing (700 ms), or a wider opening even with open eyes (1200 ms).
@@ -256,14 +281,23 @@ corroborated brow asymmetry or combined inner-brow lift and lowering. A plain
 furrow alone does not imply a composite look. See the detector rule table in
 `docs/camera-cues-api.md` for the heuristic thresholds and validation limits.
 
+`neutral` requires three supporting frames and 600 ms of low measured brow,
+eye, mouth/jaw, and nose movement (tracked coefficients ≤0.25). Missing or
+invalid blendshapes are not neutral evidence; gaze direction is excluded.
+Neutral has no lower release threshold: movement clears it immediately. It
+cannot coexist with other active cues, and it replaces any recent expression
+episode without initiating an offer in normal or Ellis demo mode.
+
 `POST /api/camera` returns `accepted` for a fresh packet and `stored` only when
 the usable flag or cue set changed; `event_id` is an integer or `null`.
 Repeated scores update `state.camera` without adding rows. The separate
 `data/ambi_cues.sqlite3` journal persists cue changes across server restarts,
 stores no images/audio, and is pruned to 24 hours and 500 events. The journal
 is not user memory. `POST /api/camera-off` clears live state but does not erase
-history. The five `*_look` cues are display-only; only the original movement
-cues can initiate a proactive Decisions check. None of these labels establishes
+history. In normal mode the five `*_look` cues cannot initiate proactive offers;
+they can shape delivery of an already-requested reply. Only the original movement
+cues can initiate a proactive Decisions check. `neutral` never initiates offers
+and resets voice delivery to its default. None of these labels establishes
 emotion, concentration, or alertness.
 
 `GET /api/cues?limit=50` returns:
@@ -279,7 +313,7 @@ type CueEvent = {
   usable: boolean; cues: CueName[]; scores: Partial<Record<CueName, number>>;
   inference_ms: number; detection_ms: number;
 };
-type CueHistory = { schema_version: 1; current: CueCurrent | null; events: CueEvent[] };
+type CueHistory = { schema_version: 2; current: CueCurrent | null; events: CueEvent[] };
 ```
 
 `current`
@@ -288,8 +322,11 @@ when the camera is off, the server restarts, or no packet arrived for two
 seconds. Here `age_ms` is elapsed time since backend receipt, not the packet's
 original frame age. `events` is newest first; each row has integer `id`, `stream_id`,
 `sequence`, ISO UTC `observed_at` and `received_at`, `usable`, `cues`, `scores`,
-`inference_ms`, and `detection_ms`. A neutral transition is `cues:[]`; an
-unusable transition has `usable:false`. `scores` in an event are a snapshot at
+`inference_ms`, and `detection_ms`. A confirmed neutral transition is
+`cues:['neutral']`; `cues:[]` means no stable classified cue (and remains accepted
+from older producers). An unusable transition has `usable:false`. Schema 2
+extends the cue enum and score keys to include `neutral`; existing journal rows
+remain readable and are not relabeled. `scores` in an event are a snapshot at
 that transition, not a per-frame time series. See `docs/camera-cues-api.md` for
 copyable requests and responses.
 
@@ -317,8 +354,13 @@ Python voice; call `POST /api/stop` before unmounting a session UI if the user
 intends to end it.
 
 The screen observer runs only when `observe_screen:true` and Screen Recording
-permission is available. It observes the primary display roughly every five
-seconds and publishes tentative, read-only summaries. Screenshots may be sent
+permission is available. It samples the primary display roughly every two
+seconds (model latency can lengthen that interval) and publishes tentative,
+read-only summaries. Identical new captures refresh observation freshness without
+a model request; reanalysis still occurs at the configured TTL. Changed screens
+clear old context while analysis is pending. Missing permission is reported as
+`screen_permission_missing`, separately from `screen_observation_off`.
+Screenshots may be sent
 to OpenAI but are not exposed by these API routes or saved in the cue journal.
 The desktop worker needs both Accessibility and Screen Recording permission.
 When unavailable, voice and memory still work, but computer actions do not.
@@ -329,6 +371,32 @@ unsolicited offers. A `suggestion` is a proposal, not permission for an action;
 the user must explicitly accept it or make a direct request. `stop-task` cancels
 future worker actions but cannot undo actions already performed. A successful
 computer report can be saved as `kind:"result"` memory.
+
+Normal-mode Decisions failures retry with bounded backoff while context remains
+fresh. A busy voice transport retains the decision for retry; only a committed
+voice send consumes the offer/cooldown or publishes its card. Held camera cues
+keep one episode while packets remain fresh; a two-second packet gap starts a
+new episode. This prevents greeting audio from silently consuming a held cue.
+
+Voice delivery adapts in normal and Ellis demo sessions at each actual response
+send boundary, after any queue wait. Fresh current `smiling` selects playful,
+upbeat delivery; `tired_look`/`sleepy_look` select calm, soothing, slower delivery
+with output PCM amplitude reduced to 78% for that reply. Frown/brow/tension,
+confused, and irritated cues select a patient, supportive tone. Tired cues take
+priority over supportive cues, then smiling. Neutral, empty cues, an unusable
+face, camera-off, or packets at least two seconds old select the default warm
+voice. Only stable cue names affect delivery, not high scores alone or retained
+observation episodes. A cue never requests speech, changes tool permissions, or
+sets system volume. The configured voice identity remains unchanged.
+
+The delivery suffix preserves the full session instructions for regular replies
+and the existing restricted instructions for greeting/proactive/demo replies.
+It tells the model to honor explicit user tone preferences and the seriousness
+of the request. Tone is a tentative presentation hint, not a mood assertion or
+memory entry. Response metadata binds local attenuation to the whole reply;
+both native and fallback playback receive the same samples without changing
+duration or interruption offsets. Tests cover transport and PCM behavior;
+naturalness and prompt adherence still require listening to live replies.
 
 ### Explicit Ellis demo mode
 
