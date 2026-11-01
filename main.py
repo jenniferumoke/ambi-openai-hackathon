@@ -12,6 +12,7 @@ import argparse
 import asyncio
 import os
 import sys
+from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -36,6 +37,8 @@ Pass a self-contained task with the user's exact intent, relevant conversation
 context, and any explicit permissions. Briefly acknowledge before starting.
 Only report success if the computer worker verified it. Relay questions and errors
 truthfully. Never infer that a tool completed just because it was called.
+Do not promise background timers or reminders unless an available tool has
+actually created one. If computer access is unavailable, say so plainly.
 If the user says stop, cancel, or don't do that during a computer task, call
 stop_computer. If no task is running, an unqualified stop ends the whole session.
 If the user asks to stop the agent, end the session, stop everything, or quit,
@@ -355,6 +358,25 @@ def create_audio_io(settings, args):
     return AudioIO(args.input_device, args.output_device, push_to_talk=True)
 
 
+def enter_voice_audio(stack, audio, *, hands_free, runtime=None):
+    """Use PortAudio if macOS cannot initialize its voice-processing output."""
+    try:
+        stack.enter_context(audio)
+        return audio
+    except RuntimeError as exc:
+        if not hands_free or not str(exc).startswith("Could not start macOS voice audio:"):
+            raise
+        from audio_io import AudioIO
+
+        fallback = AudioIO()
+        stack.enter_context(fallback)
+        print("macOS voice processing could not start; using compatibility audio. "
+              "Spoken interruptions during playback are unavailable.", flush=True)
+        if runtime is not None:
+            runtime.emit("audio_fallback", reason="voice_processing_start_failed")
+        return fallback
+
+
 async def handle_realtime_events(session, audio, activity=None, speech_gate=None, on_event=None):
     """Play responses and discard audio belonging to interrupted items.
 
@@ -399,6 +421,7 @@ async def run_voice(worker, settings, args, observation_settings=None, screen_se
     runner = create_voice_runner(worker, settings, hands_free=hands_free, exit_requested=exit_requested,
                                  proactive=proactive or memory is not None, **runner_options)
     audio = create_audio_io(settings, args)
+    native_audio = audio
     from proactive_controller import TurnActivity
     activity = TurnActivity(confirmed_input_only=hands_free)
     observing = getattr(args, "observe", False) or getattr(args, "observe_computer", False)
@@ -464,10 +487,11 @@ async def run_voice(worker, settings, args, observation_settings=None, screen_se
                 await observers_started.wait()
                 print("Observation startup begun. Connecting voice; observation does not require speech.", flush=True)
 
-            with audio:
+            with ExitStack() as audio_stack:
+                audio = enter_voice_audio(audio_stack, audio, hands_free=hands_free, runtime=runtime)
                 async with await runner.run(model_config={"playback_tracker": audio.tracker}) as session:
                     print("Connected. 'Stop' cancels active computer work, or exits when idle. 'Bye' exits everything.")
-                    if hands_free:
+                    if hands_free and audio is native_audio:
                         print("macOS voice processing and speech confirmation are active. Spoken commands can interrupt replies.")
                     print("Ctrl+C exits. Moving the mouse to a primary-screen corner stops computer actions.")
                     sender = tasks.create_task(audio.send_microphone(session))
@@ -480,7 +504,7 @@ async def run_voice(worker, settings, args, observation_settings=None, screen_se
                             try:
                                 await greet_on_start(session, memory, activity,
                                                      emit=runtime.emit if runtime else lambda *a, **k: None)
-                            except (TimeoutError, Exception) as exc:
+                            except Exception as exc:
                                 if runtime:
                                     runtime.emit("startup_skipped", reason=type(exc).__name__)
                         greeting = tasks.create_task(open_session())

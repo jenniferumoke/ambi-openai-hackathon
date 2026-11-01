@@ -33,6 +33,18 @@ def test_memory_search_is_literal_and_brief_is_bounded(tmp_path):
     store.close()
 
 
+def test_deleting_initial_project_context_does_not_reseed_it(tmp_path):
+    path = tmp_path / "db"
+    store = MemoryStore(path)
+    store.seed_project()
+    store.delete("ambi-project-brief")
+    store.close()
+    store = MemoryStore(path)
+    store.seed_project()
+    assert store.list() == []
+    store.close()
+
+
 async def test_startup_uses_memory_without_waiting_for_user(tmp_path):
     store = MemoryStore(tmp_path / "db")
     store.put(kind="task", title="Prepare the pitch", source="You")

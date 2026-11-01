@@ -35,6 +35,7 @@ class MacVoiceAudioIO:
                 "Choose them in System Settings > Sound, or use --push-to-talk with device IDs."
             )
         self.microphone = asyncio.Queue(maxsize=100)
+        self.microphone_enabled = True
         self.tracker = RealtimePlaybackTracker()
         self.echo_gate_rms = echo_gate_rms
         self._closed = True
@@ -274,6 +275,8 @@ class MacVoiceAudioIO:
             try:
                 if isinstance(data, Exception):
                     raise RuntimeError("macOS microphone capture failed") from data
-                await session.send_audio(data)
+                # Keep transport/VAD timing alive without transmitting captured
+                # speech while the UI microphone control is muted.
+                await session.send_audio(data if self.microphone_enabled else bytes(len(data)))
             finally:
                 self.microphone.task_done()
