@@ -162,6 +162,20 @@ build is the verified demo path for the MediaPipe classic worker. The original
 CLI is `uv run python main.py`; see [docs/prototype.md](docs/prototype.md).
 Generated assets, credentials, local memory, and screenshots are ignored by Git.
 
+## AMBI-Bench
+
+Run the separate local evaluation dashboard:
+
+```sh
+uv run python -m bench --serve
+```
+
+Open <http://127.0.0.1:8766> for live offline runs, inspectable failures, baseline
+comparisons and curated workspaces for bills, meeting notes and a coding task.
+The benchmark does not start sensors or desktop actions. Live classifier checks
+require the team's API configuration. See [benchmark setup and methodology](bench/README.md)
+for the full workflow, limitations and a short demo script.
+
 ## Credits and provenance
 
 The voice and desktop worker started from an earlier
