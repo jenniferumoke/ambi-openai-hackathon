@@ -107,6 +107,12 @@ that a person feels or thinks a certain way. In normal mode, the five new look
 patterns do not initiate proactive offers. Neutral never initiates an offer in
 either mode and clears earlier expression evidence when received.
 
+Schema 2 adds the `neutral` cue and allows ten score keys, replacing the former
+empty-list representation of a confirmed neutral expression. Update clients with
+exhaustive cue enums. Existing journal events and older packets remain valid;
+historical empty cue lists are not retroactively labeled neutral. The camera
+fields in `/api/state` and `/ws` use the same extended enum.
+
 ## Voice delivery from cues
 
 In both modes, Python samples the latest usable camera packet when a reply is
@@ -133,12 +139,6 @@ The configured voice identity and macOS system volume stay the same. Attenuation
 is applied to this app's generated PCM before either playback backend, preserving
 sample count and timing. Automated tests check selection, prompts, permissions,
 and sample amplitude; live listening is needed to assess prosody and naturalness.
-
-Schema 2 adds the `neutral` cue and allows ten score keys, replacing the former
-empty-list representation of a confirmed neutral expression. Update clients with
-exhaustive cue enums. Existing journal events and older packets remain valid;
-historical empty cue lists are not retroactively labeled neutral. The camera
-fields in `/api/state` and `/ws` use the same extended enum.
 
 ## Default Ellis demo policy
 
