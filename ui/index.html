@@ -3,12 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#f4f3ee" />
+  <meta name="theme-color" content="#fffdf7" />
   <title>Ambi — a little less on your mind</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 </head>
 <body>
-  <div class="app">
+  <main class="character-stage" aria-label="Ambi companion">
+    <canvas id="ambi" width="340" height="240" role="img" aria-label="Ambi waiting"></canvas>
+    <h2 id="hero-title" aria-live="polite">Here, before you ask.</h2>
+    <button class="button primary" id="start" aria-keyshortcuts="Space" disabled><span class="play-icon">▶</span> Start session</button>
+  </main>
+  <div class="app hidden" hidden inert>
     <header class="topbar">
       <a class="brand" href="/" aria-label="Ambi home"><span class="brand-mark">a</span> ambi<span class="brand-dot">.</span></a>
       <div class="top-caption">A little less on your mind.</div>
@@ -28,14 +33,14 @@
         <div class="session-top"><span class="eyebrow">YOUR AMBIENT COMPANION</span><span class="pill" id="mode-pill">STANDBY</span></div>
         <div class="companion-intro" id="companion-intro">
           <div class="orb-wrap"><div class="orb" id="orb"><div class="orb-inner"></div><span class="orb-eye left"></span><span class="orb-eye right"></span></div><div class="orb-shadow"></div></div>
-          <h2 id="hero-title">Here, before you ask.</h2>
+
           <p id="hero-subtitle">I’ll keep the context.<br>You keep your train of thought.</p>
         </div>
         <div id="transcript" class="transcript" role="log" aria-label="Conversation" aria-live="polite"></div>
         <div class="suggestion hidden" id="suggestion" aria-live="polite"></div>
         <div class="session-controls">
           <div class="setup-warning hidden" id="setup-warning" role="status"></div>
-          <button class="button primary" id="start"><span class="play-icon">▶</span> Start session</button>
+
           <div class="session-options" id="session-options"><label><input type="checkbox" id="observe-screen" checked /> Include screen context</label><span>Mac microphone & speakers</span></div>
           <form id="message-form" class="message-form"><label for="message" class="sr-only">Message Ambi</label><input id="message" placeholder="Or leave a thought here…" autocomplete="off" maxlength="4000" disabled /><button id="send" aria-label="Send message" disabled>↑</button></form>
           <p class="control-hint" id="control-hint">Start a session and Ambi will speak first.</p>
@@ -56,7 +61,7 @@
     </main>
     <footer class="page-footer"><span>Made for a more human kind of computing.</span><span>AMBI · PROTOTYPE 01</span></footer>
   </div>
-  <dialog id="memory-dialog"><form id="memory-form"><div class="dialog-top"><span class="eyebrow">A LITTLE CONTEXT</span><button type="button" class="icon-button" id="close-dialog" aria-label="Close">×</button></div><h2>What should I keep in mind?</h2><label>Type<select id="memory-kind"><option value="task">Task</option><option value="note">Note</option><option value="email">Email excerpt</option><option value="preference">Preference</option></select></label><label>Title<input id="memory-title" required maxlength="160" placeholder="e.g. Prepare the demo walkthrough" /></label><label>Details<textarea id="memory-body" maxlength="8000" rows="5" placeholder="A deadline, useful notes, or a pasted email…"></textarea></label><label>Source<input id="memory-source" maxlength="120" value="You" required /></label><p class="muted">Email excerpts are pasted context; no inbox is connected.</p><button class="button primary" type="submit">Save to memory <span>↗</span></button></form></dialog>
+  <dialog class="hidden" id="memory-dialog"><form id="memory-form"><div class="dialog-top"><span class="eyebrow">A LITTLE CONTEXT</span><button type="button" class="icon-button" id="close-dialog" aria-label="Close">×</button></div><h2>What should I keep in mind?</h2><label>Type<select id="memory-kind"><option value="task">Task</option><option value="note">Note</option><option value="email">Email excerpt</option><option value="preference">Preference</option></select></label><label>Title<input id="memory-title" required maxlength="160" placeholder="e.g. Prepare the demo walkthrough" /></label><label>Details<textarea id="memory-body" maxlength="8000" rows="5" placeholder="A deadline, useful notes, or a pasted email…"></textarea></label><label>Source<input id="memory-source" maxlength="120" value="You" required /></label><p class="muted">Email excerpts are pasted context; no inbox is connected.</p><button class="button primary" type="submit">Save to memory <span>↗</span></button></form></dialog>
   <div id="toast" class="toast hidden" role="status"></div>
   <script type="module" src="/src/main.js"></script>
 </body>

@@ -1,5 +1,6 @@
 import './style.css';
 import { Camera } from './camera.js';
+import { renderCharacter } from './character.js';
 
 const $ = selector => document.querySelector(selector);
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -103,6 +104,7 @@ function renderSuggestion(item) {
 }
 function render(next) {
   state = next;
+  renderCharacter(state);
   const active = ['connected', 'connecting', 'stopping'].includes(state.status);
   const connected = state.status === 'connected';
   if (sessionWasActive && !active && cameraEnabled) camera.stop();
