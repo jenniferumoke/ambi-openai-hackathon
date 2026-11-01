@@ -1,15 +1,18 @@
 # Ambi
 
-**Ambi is an ambient computer-use companion for macOS.** It remembers the tasks
-and notes you choose to save, notices brief facial cues and activity on your
+**Ambi is an ambient computer-use agent.** It remembers the tasks
+and notes you choose to save, recognises  emotions and activity on your
 screen, and offers timely help through voice or a suggestion card. When you ask
 it to take on a computer task, a separate worker can use your desktop while the
 conversation continues.
+Built with OpenAI Realtime API, Decisions API and Agents SDK with gpt-6.1-terra
 
 The core demo journey is: **open Ambi → hear a greeting grounded in saved context
 → work normally → receive a relevant offer → accept it or ask for help → see a
 computer task completed and remembered.** Facial cues inform whether Ambi might
-offer help; they do not establish how someone feels or authorize an action.
+offer help.
+
+
 
 This hackathon prototype has a Python backend and a Vite/JavaScript interface.
 Tasks, notes, and email excerpts are entered locally; there is no live email or
