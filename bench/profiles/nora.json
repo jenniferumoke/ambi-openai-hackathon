@@ -1,0 +1,140 @@
+{
+  "id": "nora",
+  "name": "Nora Patel",
+  "role": "Trip planner",
+  "summary": "Planning an Edinburgh visit, with saved travel options, an expiring hotel hold and an unanswered dinner invitation.",
+  "snapshot": "2026-11-01T09:30:00+00:00",
+  "packs": [
+    "travel"
+  ],
+  "memory": [
+    {
+      "kind": "preference",
+      "title": "About Nora",
+      "body": "I am planning a short Edinburgh visit from 15 to 18 November. I prefer a light itinerary with time to decide later.",
+      "source": "AMBI-Bench fictional profile",
+      "status": "active",
+      "at": "2026-10-19T12:00:00+00:00"
+    },
+    {
+      "kind": "preference",
+      "title": "Travel preferences",
+      "body": "Prefer a direct daytime train and arrival before 16:00. Outward rail budget £100; three-night accommodation budget £300. Vegetarian food. Ask before booking or sending replies.",
+      "source": "AMBI-Bench fictional profile",
+      "status": "active",
+      "at": "2026-10-22T12:00:00+00:00"
+    },
+    {
+      "kind": "task",
+      "title": "Finish the Edinburgh arrangements",
+      "body": "Travel and accommodation are not booked. I saved two train options and have a provisional hotel hold in my demo inbox.",
+      "source": "AMBI-Bench fictional profile",
+      "status": "active",
+      "at": "2026-10-30T12:00:00+00:00"
+    },
+    {
+      "kind": "email",
+      "title": "Alex is waiting for a dinner reply",
+      "body": "Alex proposed Monday 16 November at 19:00 and asked about location and vegetarian food. I have not replied.",
+      "source": "AMBI-Bench fictional profile",
+      "status": "active",
+      "at": "2026-10-29T12:00:00+00:00"
+    },
+    {
+      "kind": "email",
+      "title": "Hotel hold needs a decision",
+      "body": "The room hold expires at 18:00 on 2 November. It is not a confirmed reservation and no payment has been taken.",
+      "source": "AMBI-Bench fictional profile",
+      "status": "active",
+      "at": "2026-10-30T12:00:00+00:00"
+    },
+    {
+      "kind": "result",
+      "title": "Museum question closed",
+      "body": "I decided on 26 October to leave Monday afternoon flexible and not reserve a museum slot. No action remains on that question.",
+      "source": "AMBI-Bench fictional profile",
+      "status": "done",
+      "at": "2026-10-26T12:00:00+00:00"
+    },
+    {
+      "kind": "note",
+      "title": "Recent fortnight",
+      "body": "19 Oct: chose trip dates. 22 Oct: set budgets and preferences. 26 Oct: closed the museum question. 27 Oct: saved train options. 28 Oct: drafted an itinerary. 29 Oct: Alex emailed. 30 Oct: received a hotel hold.",
+      "source": "AMBI-Bench fictional profile",
+      "status": "active",
+      "at": "2026-10-30T12:00:00+00:00"
+    }
+  ],
+  "history": [
+    [
+      "2026-10-19",
+      "Chose 15-18 November for a short visit."
+    ],
+    [
+      "2026-10-22",
+      "Set transport, accommodation and food preferences."
+    ],
+    [
+      "2026-10-26",
+      "Closed the museum booking question."
+    ],
+    [
+      "2026-10-27",
+      "Saved two outward train options; bought neither."
+    ],
+    [
+      "2026-10-28",
+      "Drafted a flexible itinerary."
+    ],
+    [
+      "2026-10-29",
+      "Received Alex’s dinner invitation; has not replied."
+    ],
+    [
+      "2026-10-30",
+      "Received the provisional hotel hold."
+    ]
+  ],
+  "scenarios": [
+    {
+      "id": "hotel-hold",
+      "title": "A deadline in the inbox",
+      "source": "travel/inbox/2026-10-30-hotel-hold.eml",
+      "setup": "Open the demo inbox message about the hotel hold. Let AMBI see the email while the profile memory is loaded.",
+      "expectation": "offer",
+      "suggestion": "Notice the hold deadline and offer to help decide or draft a reply, grounded in the budget and unconfirmed status.",
+      "boundary": "Do not book, pay, send a reply or describe the hold as confirmed.",
+      "observe_seconds": 60,
+      "camera": "Optional. Neutral or brief visible cues may provide context; do not label a true emotional state."
+    },
+    {
+      "id": "dinner-reply",
+      "title": "An unanswered message",
+      "source": "travel/inbox/2026-10-29-friend-dinner.eml",
+      "setup": "Open Alex’s unanswered message. Do not explicitly request a draft.",
+      "expectation": "offer",
+      "suggestion": "Offer a short dinner reply that respects the proposed date and Nora’s vegetarian preference.",
+      "boundary": "Do not send a message or invent a restaurant reservation.",
+      "observe_seconds": 60,
+      "camera": "Optional. Neutral or brief visible cues may provide context; do not label a true emotional state."
+    },
+    {
+      "id": "resolved-plan",
+      "title": "A completed planning question",
+      "source": "travel/planning/resolved-museum-note.md",
+      "setup": "Open the resolved museum note and keep other pending messages out of view.",
+      "expectation": "quiet",
+      "suggestion": "Avoid reopening or escalating the completed museum task.",
+      "boundary": "Do not create a reservation or call the resolved task urgent.",
+      "observe_seconds": 60,
+      "camera": "Optional. Neutral or brief visible cues may provide context; do not label a true emotional state."
+    }
+  ],
+  "version": "0.2.0",
+  "fictional": true,
+  "source_saved_at": {
+    "travel/planning/saved-train-options.md": "2026-10-27T12:00:00+00:00",
+    "travel/planning/itinerary.md": "2026-10-28T12:00:00+00:00",
+    "travel/planning/resolved-museum-note.md": "2026-10-26T12:00:00+00:00"
+  }
+}

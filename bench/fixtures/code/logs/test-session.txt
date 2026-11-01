@@ -1,0 +1,61 @@
+PAIRMatch / local development session
+Captured from the shipped broken fixture; path normalized for privacy.
+$ python3 -m unittest -v test_examples
+
+test_basic_pair (test_examples.PairMatchExamples.test_basic_pair) ... FAIL
+test_duplicate_values (test_examples.PairMatchExamples.test_duplicate_values) ... FAIL
+test_negative_values (test_examples.PairMatchExamples.test_negative_values) ... FAIL
+test_no_solution (test_examples.PairMatchExamples.test_no_solution) ... ok
+test_single_entry_is_not_pair (test_examples.PairMatchExamples.test_single_entry_is_not_pair) ... FAIL
+
+======================================================================
+FAIL: test_basic_pair (test_examples.PairMatchExamples.test_basic_pair)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/pairmatch/test_examples.py", line 18, in test_basic_pair
+    self.assert_pair([2, 7, 11, 15], 9)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/workspace/pairmatch/test_examples.py", line 10, in assert_pair
+    self.assertIsInstance(result, (tuple, list), "Expected two indices, not a scalar or None")
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: None is not an instance of any of (<class 'tuple'>, <class 'list'>) : Expected two indices, not a scalar or None
+
+======================================================================
+FAIL: test_duplicate_values (test_examples.PairMatchExamples.test_duplicate_values)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/pairmatch/test_examples.py", line 21, in test_duplicate_values
+    self.assert_pair([3, 3], 6)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "/workspace/pairmatch/test_examples.py", line 10, in assert_pair
+    self.assertIsInstance(result, (tuple, list), "Expected two indices, not a scalar or None")
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: None is not an instance of any of (<class 'tuple'>, <class 'list'>) : Expected two indices, not a scalar or None
+
+======================================================================
+FAIL: test_negative_values (test_examples.PairMatchExamples.test_negative_values)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/pairmatch/test_examples.py", line 24, in test_negative_values
+    self.assert_pair([-3, 4, 3, 90], 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/workspace/pairmatch/test_examples.py", line 10, in assert_pair
+    self.assertIsInstance(result, (tuple, list), "Expected two indices, not a scalar or None")
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: None is not an instance of any of (<class 'tuple'>, <class 'list'>) : Expected two indices, not a scalar or None
+
+======================================================================
+FAIL: test_single_entry_is_not_pair (test_examples.PairMatchExamples.test_single_entry_is_not_pair)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/pairmatch/test_examples.py", line 30, in test_single_entry_is_not_pair
+    self.assertIsNone(two_sum([9], 9))
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+AssertionError: 0 is not None
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.001s
+
+FAILED (failures=4)
+
+Process exit code: 1

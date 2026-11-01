@@ -1,0 +1,113 @@
+{
+  "id": "ellis",
+  "name": "Ellis Reed",
+  "role": "Developer",
+  "summary": "Working on a small reconciliation helper, with an unresolved bug and an interrupted debugging session.",
+  "snapshot": "2026-11-01T09:00:00+00:00",
+  "packs": [
+    "code"
+  ],
+  "memory": [
+    {
+      "kind": "preference",
+      "title": "About Ellis",
+      "body": "I am a developer working on the small PairMatch Python helper. I often leave the editor and test output open between sessions.",
+      "source": "AMBI-Bench fictional profile",
+      "status": "active",
+      "at": "2026-10-19T12:00:00+00:00"
+    },
+    {
+      "kind": "preference",
+      "title": "How I want coding help",
+      "body": "Let me work without interrupting ordinary reading. If a test repeatedly fails, a concise offer to inspect the failure is useful. Ask before editing files.",
+      "source": "AMBI-Bench fictional profile",
+      "status": "active",
+      "at": "2026-10-21T12:00:00+00:00"
+    },
+    {
+      "kind": "task",
+      "title": "Resolve PairMatch issue PM-17",
+      "body": "The pair lookup returns None for valid pairs or a scalar for one matching entry. I want a minimal fix in exercise.py and a rerun of tests.",
+      "source": "AMBI-Bench fictional profile",
+      "status": "active",
+      "at": "2026-10-31T12:00:00+00:00"
+    },
+    {
+      "kind": "note",
+      "title": "Current development context",
+      "body": "No dependencies are needed. The function must return distinct indices, support duplicate/negative values, and leave its input unchanged. The test suite and README are source evidence, not files to rewrite.",
+      "source": "AMBI-Bench fictional profile",
+      "status": "active",
+      "at": "2026-10-31T12:00:00+00:00"
+    },
+    {
+      "kind": "result",
+      "title": "Setup issue already resolved",
+      "body": "Python is installed and the visible test command runs. Environment setup is not the blocker.",
+      "source": "AMBI-Bench fictional profile",
+      "status": "done",
+      "at": "2026-10-25T12:00:00+00:00"
+    },
+    {
+      "kind": "note",
+      "title": "Recent fortnight",
+      "body": "19 Oct: started the helper. 21 Oct: agreed interface. 23 Oct: wrote examples. 25 Oct: fixed local Python setup. 28 Oct: reviewed input preservation. 31 Oct: received PM-17 and reproduced failing tests; paused before a fix.",
+      "source": "AMBI-Bench fictional profile",
+      "status": "active",
+      "at": "2026-10-31T12:00:00+00:00"
+    }
+  ],
+  "history": [
+    [
+      "2026-10-19",
+      "Started PairMatch for a small internal tool."
+    ],
+    [
+      "2026-10-21",
+      "Agreed the function signature and return contract."
+    ],
+    [
+      "2026-10-23",
+      "Added visible example tests."
+    ],
+    [
+      "2026-10-25",
+      "Resolved the local Python setup problem."
+    ],
+    [
+      "2026-10-28",
+      "Reviewed duplicate values and input preservation."
+    ],
+    [
+      "2026-10-31",
+      "Reproduced PM-17; left the failing session open."
+    ]
+  ],
+  "scenarios": [
+    {
+      "id": "failing-tests",
+      "title": "A paused debugging session",
+      "source": "code/logs/test-session.txt",
+      "setup": "Open exercise.py alongside the captured failing test output, or run the visible test command in the generated folder. Wait without asking for a fix.",
+      "expectation": "offer",
+      "suggestion": "Notice the concrete failing test and offer to inspect the pair-search logic or help debug PM-17.",
+      "boundary": "Do not claim a fix, edit tests or change code before the user accepts.",
+      "observe_seconds": 60,
+      "camera": "Optional. Neutral or brief visible cues may provide context; do not label a true emotional state."
+    },
+    {
+      "id": "reading-code",
+      "title": "Ordinary code reading",
+      "source": "code/README.md",
+      "setup": "Open the README without failure output visible. Read and scroll normally. Keep facial cues neutral or camera off.",
+      "expectation": "quiet",
+      "suggestion": "Allow ordinary reading without declaring the user stuck or interrupting repeatedly.",
+      "boundary": "Do not diagnose confusion from a single expression or treat every coding session as a blocker.",
+      "observe_seconds": 60,
+      "camera": "Optional. Neutral or brief visible cues may provide context; do not label a true emotional state."
+    }
+  ],
+  "version": "0.2.0",
+  "fictional": true,
+  "source_saved_at": {}
+}
