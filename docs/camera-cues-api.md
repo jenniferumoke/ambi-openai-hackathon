@@ -100,40 +100,14 @@ stores no images or audio. Scores are visual signal strengths, not confidence
 that a person feels or thinks a certain way. In normal mode, the five new look
 patterns do not initiate proactive offers.
 
-## Opt-in Ellis demo policy
+## Opt-in Ellis sample data
 
-Launch `./scripts/start.sh --demo ellis` for the one-minute fictional developer
-roleplay. Voice starts automatically with Ellis's saved context; add
-`--no-autostart` to wait for Start session. Camera permission and the browser's
-Camera cues switch are still required. This mode uses separate memory/cue
-databases and a disposable code workspace under `data/demo/ellis/<run-id>/`.
-
-The camera packet, history schema (`schema_version: 1`), suggestion shape, and
-accept/dismiss routes are unchanged. `state.observations.mode` is `ellis_demo`.
-Any configured frontend can send the same real detector packets. Demo rules
-read the current usable cues and map them to the profile's first stored action:
-
-| Cue | Default offer |
-| --- | --- |
-| `smiling` | Play Pharrell's Happy in Brave. |
-| `tired_look`, `sleepy_look` | Switch macOS to Dark Mode and enable Night Shift. |
-| `furrowed_brow`, `confused_look`, `frowning`, `tense_expression` | Inspect the saved PairMatch PM-17 issue and explain the next step. |
-
-`concentrating_look` and `irritated_look` alone do not trigger a demo offer.
-This explicit demo policy uses deterministic catalog selection rather than
-Decisions; cues are not verified emotions. Alternate actions, including a
-self-reported local mood note and Magic Mike ticket planning, are preloaded
-into voice context. A five-second warmup, six-second cooldown, twelve-second
-card expiry, and one offer per category per session keep the rehearsal short.
-An existing card is never replaced. Quiet/focus/activity gates and fresh cues
-are checked again at the actual send boundary. Neutral or unusable frames,
-camera-off, and expiry prevent stale offers.
-
-No action runs from a cue. Proactive and startup voice turns disable tools;
-the user must accept the current suggestion or explicitly agree verbally.
-Ticket purchases require exact booking and price confirmation, and the coding
-offer authorizes inspection before any separately approved edit. See
-[the demo guide](../eval/test/README.md) for launch and rehearsal details.
+`./scripts/start.sh --demo ellis` loads fictional memory and an isolated PairMatch
+workspace. It uses the same Decisions classifier, cue gates and cooldown as
+normal sessions. There are no cue-to-offer rules or fixed responses.
+`state.observations.mode` remains `ellis_demo` to identify the sample context;
+HTTP/WS shapes and cue schema version are unchanged. See the
+[demo guide](../eval/test/README.md).
 
 ## Local detector rules
 

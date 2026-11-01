@@ -144,7 +144,7 @@ def test_camera_payload_validation_and_focus(tmp_path):
 
 
 def test_ellis_demo_uses_existing_cue_and_accept_contract_without_automatic_actions(tmp_path):
-    from eval.test.demo import DemoLoop, create_demo_app
+    from eval.test.demo import create_demo_app
 
     app = create_demo_app(root=tmp_path / "demo", auto_start=False)
     with TestClient(app) as client:
@@ -154,16 +154,18 @@ def test_ellis_demo_uses_existing_cue_and_accept_contract_without_automatic_acti
                                     send_message=AsyncMock(), interrupt=AsyncMock())
         r.audio = SimpleNamespace(clear=lambda: None)
         headers = {'X-Ambi-Token': client.get('/api/bootstrap').json()['token']}
-        loop = DemoLoop(r, r.demo_profile)
         assert client.post('/api/camera', headers=headers, json=packet(cues=['smiling']).model_dump()).status_code == 200
-        client.portal.call(loop.step)
+        # Cue receipt alone never manufactures a scripted suggestion.
+        assert client.get('/api/state', headers=headers).json()['suggestion'] is None
+        r.suggestion = {'id': 'model-offer', 'title': 'Inspect the failing test?',
+                        'text': 'Can I inspect the failing test?', 'task': 'Inspect PairMatch',
+                        'action': 'offer_task_help', 'expires_at': monotonic() + 30}
         suggestion = client.get('/api/state', headers=headers).json()['suggestion']
-        assert suggestion['title'] == 'A little music?'
+        assert suggestion['title'] == 'Inspect the failing test?'
         r.session.send_message.assert_not_awaited()
         assert client.post('/api/accept', headers=headers, json={'id': 'wrong'}).status_code == 400
         assert client.post('/api/accept', headers=headers, json={'id': suggestion['id']}).status_code == 200
         r.session.send_message.assert_awaited_once_with(suggestion['task'])
-        assert 'Brave' in suggestion['task'] and 'Happy' in suggestion['task']
         assert client.get('/api/state', headers=headers).json()['suggestion'] is None
         assert client.post('/api/accept', headers=headers, json={'id': suggestion['id']}).status_code == 400
         assert client.get('/api/cues', headers=headers).json()['schema_version'] == 1

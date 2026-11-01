@@ -82,10 +82,6 @@ class AppRuntime:
             self.audio.microphone_enabled = self.microphone_enabled
 
     async def _decisions(self):
-        if self.demo_profile is not None:
-            from eval.test.demo import DemoLoop
-            await DemoLoop(self, self.demo_profile).run()
-            return
         from openai import AsyncOpenAI
         async with AsyncOpenAI(max_retries=0, timeout=3) as client:
             await AmbientLoop(self, AmbientClassifier(client, os.getenv("DECISIONS_MODEL", "gpt-6-luna"))).run()

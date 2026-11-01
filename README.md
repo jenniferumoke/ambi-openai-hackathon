@@ -17,13 +17,11 @@ reminders integration. It is built for one user on one Mac.
 
 ## Start the demo
 
-For the **one-minute Ellis developer roleplay**, run
-`./scripts/start.sh --demo ellis`. It preloads the fictional profile, starts
-voice automatically, and uses an explicit cue/action catalog with a shorter
-cooldown. Turn on Camera cues in the browser. See
-[the Ellis demo guide](eval/test/README.md) for the mapping and timed script.
-Each launch uses separate demo memory and a disposable PairMatch workspace.
-The normal session below retains the standard Decisions policy.
+For fictional Ellis sample data, run `./scripts/start.sh --demo ellis`.
+It prepares isolated memory and a disposable PairMatch workspace and starts
+voice automatically. Add `--no-autostart` to start manually. Responses and offers
+come from the normal agent policy, with no fixed greeting or cue/action catalog.
+See [the Ellis demo guide](eval/test/README.md).
 
 From the repository root, create a local API-key file, then start the app:
 

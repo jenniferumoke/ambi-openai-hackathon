@@ -15,7 +15,7 @@ its markup, CSS, and local component state.
   gating. `cue_store.py` defines the durable cue journal.
 - `memory_store.py` defines durable user memory and its validation.
 - `eval/test/ellis.json` and `eval/test/demo.py` define the opt-in fictional Ellis
-  demo profile, isolated workspace, and explicit cue-to-offer catalog.
+  demo profile and isolated workspace. Demo data does not prescribe responses.
 - `observation_hub.py` defines the live camera and computer observation shape;
   `screen_observer.py` defines the tentative computer observation payload.
 - `ui/src/camera-worker.js` and `ui/src/cue-filter.js` implement the current
@@ -334,28 +334,15 @@ computer report can be saved as `kind:"result"` memory.
 
 `./scripts/start.sh --demo ellis` (or `server.py --demo ellis --open`) creates a
 fresh ignored `data/demo/ellis/<run-id>/` with Ellis memory, cue history, and an
-editable PairMatch copy. It preloads the full fictional profile and action
-catalog into voice system context and automatically starts voice; use
-`--no-autostart` to retain the Start session button flow. The normal launcher
-does not load this profile. `observations.mode` is `ellis_demo`; HTTP/WS shapes,
-authentication, and cue schema version remain unchanged.
+editable PairMatch copy. It preloads fictional background data into voice context and automatically starts voice;
+use `--no-autostart` for the Start session button flow. `observations.mode` remains
+`ellis_demo` as a context marker; routes and cue schema are unchanged.
 
-Only this explicit mode replaces Decisions classification with deterministic
-profile rules. A smile offers Happy in Brave; tired/sleepy look cues offer
-Dark Mode plus Night Shift; brow/confused/frown/tension cues offer PM-17 help
-grounded in the saved task. The catalog also includes confirmed local mood
-notes and ticket planning. These are possible offers, never standing permission
-or proof of internal state. There is a five-second startup wait, six-second
-cooldown, twelve-second suggestion expiry, and at most one offer per category
-per voice session. A current usable cue is required at the voice-send boundary;
-focus, user/response/audio/computer activity, and a pending suggestion suppress
-new offers. Normal mode retains the display-only look cues and 45-second cooldown.
-
-Opening and proactive turns disable tools. The usual `accept` route or an
-explicit spoken/typed agreement authorizes only the offered task. Code
-inspection requires separate approval before editing; ticket planning requires
-exact booking/price confirmation before purchase. See `eval/test/README.md` for
-the minute script and `tests/test_ellis_demo.py` for offline coverage.
+Demo and normal sessions both use AmbientLoop and the Decisions classifier,
+including normal cooldowns and display-only composite cues. There are no fixed
+greetings, response templates, cue-to-action mappings, or shortcut timers.
+Only identity, preferences, history, memory and local source files are supplied.
+Suggestions remain proposals requiring user acceptance before action.
 
 If macOS voice processing fails to initialize on an audio route, the backend
 falls back to compatible audio. The fallback keeps voice and typed turns but

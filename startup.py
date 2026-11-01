@@ -29,9 +29,6 @@ async def greet_on_start(session, memory, activity, *, emit=lambda *a, **k: None
     instructions = STARTUP_INSTRUCTIONS
     if demo_profile is not None:
         payload["demo_profile"] = demo_profile.data
-        instructions += ("\nThis is an explicitly selected fictional roleplay. Address the user as Ellis. "
-                         "Use the profile's opening_text as the brief opening wording. Do not enumerate "
-                         "the action catalog or infer a mood. Wait for a later cue or a direct request.")
     context = json.dumps(payload)
     while monotonic() < deadline and eligible():
         async with asyncio.timeout(max(0.05, deadline - monotonic())):

@@ -184,7 +184,7 @@ if __name__ == "__main__":
     from agents import set_tracing_disabled
     parser = argparse.ArgumentParser(description="Ambi's local app")
     parser.add_argument("--open", action="store_true", help="Open the browser once the local server is ready")
-    parser.add_argument("--demo", choices=["ellis"], help="Load the isolated one-minute Ellis roleplay and start voice")
+    parser.add_argument("--demo", choices=["ellis"], help="Load isolated Ellis sample data and start voice")
     parser.add_argument("--no-autostart", action="store_true", help="Wait for Start session in demo mode")
     args = parser.parse_args()
     load_dotenv(ROOT / ".env")

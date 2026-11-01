@@ -2,7 +2,7 @@
   "id": "ellis",
   "name": "Ellis Reed",
   "role": "Developer",
-  "summary": "Working on a small reconciliation helper, with an unresolved bug and an interrupted debugging session. One-minute fictional roleplay with explicit cue-to-offer preferences.",
+  "summary": "Developer working on PairMatch, with an unresolved bug and an interrupted debugging session.",
   "snapshot": "2026-11-01T09:00:00+00:00",
   "packs": [
     "code"
@@ -59,7 +59,7 @@
     {
       "kind": "preference",
       "title": "Ellis: music and celebration",
-      "body": "For this fictional demo I like Pharrell Williams’s Happy in Brave. I also keep a local mood log in Ambi, and would like to explore Magic Mike Live tickets in London. Offer one choice at a time. Ask before playback or saving a mood; agree date, budget, show, seats and exact total before any booking. A smile does not establish my mood.",
+      "body": "I enjoy Pharrell Williams’s Happy and use Brave. I am interested in a London theatre outing, but have not picked a date or budget. Ask before playing music or making a booking.",
       "source": "Fictional Ellis demo preferences",
       "status": "active",
       "at": "2026-11-01T09:00:00+00:00"
@@ -67,7 +67,7 @@
     {
       "kind": "preference",
       "title": "Ellis: display comfort",
-      "body": "If I want a more comfortable screen, offer macOS Dark appearance plus Night Shift (night mode). Ask before changing either setting. A yawn-like or sleepy-looking cue can time that question but does not mean I am tired.",
+      "body": "I prefer Dark appearance and Night Shift for comfortable evening screen use. Ask before changing my display settings.",
       "source": "Fictional Ellis demo preferences",
       "status": "active",
       "at": "2026-11-01T09:00:00+00:00"
@@ -75,7 +75,7 @@
     {
       "kind": "preference",
       "title": "Ellis: project walkthrough",
-      "body": "My active demo task is PairMatch PM-17. If I hesitate, a brief offer to inspect the failing pair-lookup case is useful. Inspect and explain first; ask separately before editing exercise.py. Do not change tests or the original benchmark fixture.",
+      "body": "My current project is PairMatch PM-17. I paused after reproducing the failing tests. I prefer to understand a bug before changing the code.",
       "source": "Fictional Ellis demo preferences",
       "status": "active",
       "at": "2026-11-01T09:00:00+00:00"
@@ -107,106 +107,8 @@
       "Reproduced PM-17; left the failing session open."
     ]
   ],
-  "scenarios": [
-    {
-      "id": "failing-tests",
-      "title": "A paused debugging session",
-      "source": "code/logs/test-session.txt",
-      "setup": "Open exercise.py alongside the captured failing test output, or run the visible test command in the generated folder. Wait without asking for a fix.",
-      "expectation": "offer",
-      "suggestion": "Notice the concrete failing test and offer to inspect the pair-search logic or help debug PM-17.",
-      "boundary": "Do not claim a fix, edit tests or change code before the user accepts.",
-      "observe_seconds": 60,
-      "camera": "Optional. Neutral or brief visible cues may provide context; do not label a true emotional state."
-    },
-    {
-      "id": "reading-code",
-      "title": "Ordinary code reading",
-      "source": "code/README.md",
-      "setup": "Open the README without failure output visible. Read and scroll normally. Keep facial cues neutral or camera off.",
-      "expectation": "quiet",
-      "suggestion": "Allow ordinary reading without declaring the user stuck or interrupting repeatedly.",
-      "boundary": "Do not diagnose confusion from a single expression or treat every coding session as a blocker.",
-      "observe_seconds": 60,
-      "camera": "Optional. Neutral or brief visible cues may provide context; do not label a true emotional state."
-    }
-  ],
-  "version": "ellis-demo-1",
+  "version": "ellis-context-2",
   "fictional": true,
   "source_saved_at": {},
-  "source_profile": "bench/profiles/ellis.json",
-  "demo": {
-    "opening_text": "Welcome back, Ellis. Your PairMatch PM-17 debugging context is ready whenever you want a hand.",
-    "warmup_seconds": 5,
-    "cooldown_seconds": 6,
-    "suggestion_seconds": 12,
-    "cue_mappings": [
-      {
-        "id": "tired",
-        "label": "Display comfort (tentative tired-looking cue)",
-        "cues": [
-          "tired_look",
-          "sleepy_look"
-        ],
-        "actions": [
-          {
-            "id": "display_comfort",
-            "title": "A softer screen?",
-            "offer": "Ellis, would you like me to switch this Mac to Dark Mode and turn on Night Shift?",
-            "task": "Switch this Mac to Dark appearance and enable Night Shift for now using System Settings. Verify both settings. If either option is unavailable, report that accurately. Do not change the schedule or unrelated settings.",
-            "requires_confirmation": true
-          }
-        ]
-      },
-      {
-        "id": "unsure",
-        "label": "Offer project help (tentative brow cue plus saved PM-17 task)",
-        "cues": [
-          "furrowed_brow",
-          "confused_look",
-          "frowning",
-          "tense_expression"
-        ],
-        "actions": [
-          {
-            "id": "inspect_pairmatch",
-            "title": "A hand with PM-17?",
-            "offer": "Ellis, want me to walk through the failing PairMatch test and help you find the next step?",
-            "task": "Help me understand PairMatch issue PM-17 in the disposable workspace {workspace}. Inspect exercise.py, docs/PM-17.md and logs/test-session.txt and explain why the pair lookup fails, then suggest the smallest next step. This approval is for inspection and explanation only. Ask before editing files; do not modify tests or the original bench/fixtures/code sources.",
-            "requires_confirmation": true
-          }
-        ]
-      },
-      {
-        "id": "happy",
-        "label": "Music or celebration (tentative smile cue)",
-        "cues": [
-          "smiling"
-        ],
-        "actions": [
-          {
-            "id": "play_happy",
-            "title": "A little music?",
-            "offer": "Ellis, fancy Pharrell’s Happy? Shall I play it in Brave?",
-            "task": "Open Brave and play Pharrell Williams’s song Happy from an official artist music video or music page. Verify that playback started. Do not sign in, subscribe, purchase, or change accounts. If Brave is unavailable, ask before using another browser.",
-            "requires_confirmation": true
-          },
-          {
-            "id": "log_mood",
-            "title": "Add to your mood log?",
-            "offer": "Would you like to record happy as your mood in your local Ambi mood log?",
-            "task": "After I explicitly confirm that happy describes my mood and that I want it saved, use save_note to add a local Ambi note titled Mood log with my self-reported mood. Do not record a camera inference as fact or claim there is an external mood-tracker integration.",
-            "requires_confirmation": true
-          },
-          {
-            "id": "magic_mike_tickets",
-            "title": "Plan a night out?",
-            "offer": "Want to look at Magic Mike Live tickets in London? What date and budget would work?",
-            "task": "Help me find Magic Mike Live tickets in London in Brave. Ask for date, number of tickets and budget first. Browse options on the official booking site. Before any booking or purchase, show the exact show, date, seats, total price and terms and ask for explicit confirmation. Do not enter payment details, sign in, or buy anything based on the initial offer acceptance.",
-            "requires_confirmation": true
-          }
-        ]
-      }
-    ]
-  }
+  "source_profile": "bench/profiles/ellis.json"
 }
