@@ -14,7 +14,7 @@ Do not call tools or start desktop work during this greeting.
 """
 
 
-async def greet_on_start(session, memory, activity, *, emit=lambda *a, **k: None, timeout=5):
+async def greet_on_start(session, memory, activity, *, emit=lambda *a, **k: None, timeout=5, demo_profile=None):
     import json
     from datetime import datetime
     from zoneinfo import ZoneInfo
@@ -24,11 +24,18 @@ async def greet_on_start(session, memory, activity, *, emit=lambda *a, **k: None
         return False
     deadline = monotonic() + timeout
     eligible = lambda: activity.user_turn_generation == 0 and not activity.user_speaking
-    context = json.dumps({"event": "session_opened", "current_time": datetime.now(ZoneInfo("Europe/London")).isoformat(),
-                          "memory": json.loads(memory.brief())})
+    payload = {"event": "session_opened", "current_time": datetime.now(ZoneInfo("Europe/London")).isoformat(),
+               "memory": json.loads(memory.brief())}
+    instructions = STARTUP_INSTRUCTIONS
+    if demo_profile is not None:
+        payload["demo_profile"] = demo_profile.data
+        instructions += ("\nThis is an explicitly selected fictional roleplay. Address the user as Ellis. "
+                         "Use the profile's opening_text as the brief opening wording. Do not enumerate "
+                         "the action catalog or infer a mood. Wait for a later cue or a direct request.")
+    context = json.dumps(payload)
     while monotonic() < deadline and eligible():
         async with asyncio.timeout(max(0.05, deadline - monotonic())):
-            if await send(context, eligible, instructions=STARTUP_INSTRUCTIONS, kind="startup"):
+            if await send(context, eligible, instructions=instructions, kind="startup"):
                 emit("startup_greeting", status="requested")
                 return True
         await asyncio.sleep(0.1)

@@ -10,7 +10,8 @@
     "test": "node --test tests/*.test.js"
   },
   "dependencies": {
-    "@mediapipe/tasks-vision": "1.2.0"
+    "@mediapipe/tasks-vision": "1.2.0",
+    "@rive-app/canvas": "^2.49.0"
   },
   "devDependencies": {
     "playwright": "1.64.1",

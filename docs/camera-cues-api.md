@@ -97,5 +97,83 @@ restart. `limit` must be 1–100. The same live `camera` field is also present i
 The journal is `data/ambi_cues.sqlite3`, separate from the user's saved memory.
 It keeps at most 500 cue changes and deletes records older than 24 hours. It
 stores no images or audio. Scores are visual signal strengths, not confidence
-that a person feels or thinks a certain way. The five new look patterns do not
-initiate proactive offers.
+that a person feels or thinks a certain way. In normal mode, the five new look
+patterns do not initiate proactive offers.
+
+## Opt-in Ellis demo policy
+
+Launch `./scripts/start.sh --demo ellis` for the one-minute fictional developer
+roleplay. Voice starts automatically with Ellis's saved context; add
+`--no-autostart` to wait for Start session. Camera permission and the browser's
+Camera cues switch are still required. This mode uses separate memory/cue
+databases and a disposable code workspace under `data/demo/ellis/<run-id>/`.
+
+The camera packet, history schema (`schema_version: 1`), suggestion shape, and
+accept/dismiss routes are unchanged. `state.observations.mode` is `ellis_demo`.
+Any configured frontend can send the same real detector packets. Demo rules
+read the current usable cues and map them to the profile's first stored action:
+
+| Cue | Default offer |
+| --- | --- |
+| `smiling` | Play Pharrell's Happy in Brave. |
+| `tired_look`, `sleepy_look` | Switch macOS to Dark Mode and enable Night Shift. |
+| `furrowed_brow`, `confused_look`, `frowning`, `tense_expression` | Inspect the saved PairMatch PM-17 issue and explain the next step. |
+
+`concentrating_look` and `irritated_look` alone do not trigger a demo offer.
+This explicit demo policy uses deterministic catalog selection rather than
+Decisions; cues are not verified emotions. Alternate actions, including a
+self-reported local mood note and Magic Mike ticket planning, are preloaded
+into voice context. A five-second warmup, six-second cooldown, twelve-second
+card expiry, and one offer per category per session keep the rehearsal short.
+An existing card is never replaced. Quiet/focus/activity gates and fresh cues
+are checked again at the actual send boundary. Neutral or unusable frames,
+camera-off, and expiry prevent stale offers.
+
+No action runs from a cue. Proactive and startup voice turns disable tools;
+the user must accept the current suggestion or explicitly agree verbally.
+Ticket purchases require exact booking and price confirmation, and the coding
+offer authorizes inspection before any separately approved edit. See
+[the demo guide](../eval/test/README.md) for launch and rehearsal details.
+
+## Local detector rules
+
+`ui/src/cue-filter.js` maps the worker's MediaPipe blendshapes to the nine public
+cues. These rules are application heuristics; MediaPipe produces facial movement
+coefficients, not these look labels (see its [blendshape model card](https://storage.googleapis.com/mediapipe-assets/Model%20Card%20Blendshape%20V2.pdf)).
+Scores remain 0–1 signal strengths, including while a pattern is waiting for its
+hold time. The HTTP packet and history schema are unchanged.
+
+| Cue | Visible evidence and minimum hold |
+| --- | --- |
+| `smiling` | Average mouth-corner lift ≥0.45; three supporting frames. |
+| `frowning` | Average mouth-corner lowering ≥0.35; three supporting frames; suppressed by a smile or yawn-like posture. |
+| `furrowed_brow` | Both brow-lowering scores ≥0.28; three supporting frames. One lowered brow alone is insufficient. Suppressed during a yawn-like posture. |
+| `tense_expression` | Average lip-press score ≥0.45; three supporting frames; suppressed during a yawn-like posture. |
+| `confused_look` | Brow asymmetry ≥0.25 with squint, lip press, or frown ≥0.25; alternatively, both brow lowering and inner-brow lift ≥0.25; 350 ms. |
+| `concentrating_look` | Both brow lowering and squint ≥0.30; 500 ms. Confused/irritated patterns take precedence. Eye closure reduces support. |
+| `irritated_look` | Both brow lowering and lip press or nose wrinkle ≥0.40; 300 ms. Eye closure reduces support. |
+| `tired_look` | Jaw opening ≥0.55 and narrowing/closure in each eye ≥0.275 for 700 ms; alternatively, jaw opening ≥0.72 for 1200 ms, including with open eyes. |
+| `sleepy_look` | Both eye-closure scores ≥0.70 for 700 ms; ordinary brief blinks do not qualify. |
+
+Confused, concentrating, irritated, and sleepy patterns require a relatively
+closed mouth (`jawOpen < 0.35`) and no strong smile. The yawn paths reject a
+strong smile or average eye widening ≥0.45, reducing overlap with laughing and
+wide-eyed mouth opening. Each yawn path has its own timer, so switching patterns
+cannot inherit the shorter hold. Only `tired_look` is emitted for either path;
+there is no extra public yawn cue. Once confirmed, a yawn continues while the
+eyes reopen if the jaw stays open (≥0.55), retaining the initial detection time.
+
+Every pattern requires at least three supporting frames. Timing uses elapsed
+milliseconds rather than a fixed frame rate. Pending evidence tolerates dips
+below entry strength for up to 150 ms, provided it stays at least 65% of the
+entry threshold. Active cues use that lower threshold to avoid flicker; a
+neutral frame clears them immediately. Face loss, multiple faces, an explicit
+reset, or a frame gap over 500 ms clears all evidence. Old timestamps are ignored.
+
+The automated tests replay synthetic blendshape sequences for yawns, speech-like
+mouth movement, blinks, brow patterns, overlapping expressions, jitter, and
+different frame rates. They verify rule behavior, not measured accuracy on
+people. Sustained open-mouth speech can still resemble a yawn, and lighting,
+pose, and individual facial movement can change the model's scores. Validate
+with representative camera sessions before treating these thresholds as tuned
+for a particular user; the labels do not establish tiredness or emotions.
