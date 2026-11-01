@@ -37,7 +37,7 @@ def frontend_origins():
     return origins
 
 
-def create_app(*, db_path=None, cue_db_path=None, seed=True, runtime_factory=AppRuntime):
+def create_app(*, db_path=None, cue_db_path=None, seed=True, runtime_factory=AppRuntime, auto_start=False):
     origins = frontend_origins()
     memory = MemoryStore(db_path or ROOT / "data" / "ambi.sqlite3")
     cue_path = cue_db_path or (Path(f"{db_path}.cues.sqlite3") if db_path is not None
@@ -151,6 +151,11 @@ def create_app(*, db_path=None, cue_db_path=None, seed=True, runtime_factory=App
 
     @asynccontextmanager
     async def lifespan(app):
+        if auto_start:
+            try:
+                await runtime.start()
+            except ValueError as exc:
+                runtime.status, runtime.error = "error", str(exc)
         yield
         await runtime.stop()
         memory.close()
@@ -179,12 +184,29 @@ if __name__ == "__main__":
     from agents import set_tracing_disabled
     parser = argparse.ArgumentParser(description="Ambi's local app")
     parser.add_argument("--open", action="store_true", help="Open the browser once the local server is ready")
+    parser.add_argument("--demo", choices=["ellis"], help="Load the isolated one-minute Ellis roleplay and start voice")
+    parser.add_argument("--no-autostart", action="store_true", help="Wait for Start session in demo mode")
     args = parser.parse_args()
     load_dotenv(ROOT / ".env")
     set_tracing_disabled(True)
     if not (ROOT / "ui" / "dist" / "index.html").exists():
         raise SystemExit("Build the UI first: cd ui && npm ci && npm run build")
-    print("Ambi is ready at http://127.0.0.1:8765 — click Start session to enable voice.", flush=True)
+    # Do not open a browser onto an unrelated listener or prepare a demo for it.
+    import socket
+    with socket.socket() as probe:
+        probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            probe.bind(("127.0.0.1", 8765))
+        except OSError:
+            raise SystemExit("Port 8765 is in use. Identify it with lsof -nP -iTCP:8765 -sTCP:LISTEN, then stop that server before launching Ambi.")
+    if args.demo:
+        from eval.test.demo import create_demo_app
+        app = create_demo_app(auto_start=not args.no_autostart)
+        print(f"Ellis demo workspace: {app.state.runtime.demo_profile.workspace}", flush=True)
+    else:
+        app = create_app()
+    instruction = "voice starts automatically" if args.demo and not args.no_autostart else "click Start session to enable voice"
+    print(f"Ambi is ready at http://127.0.0.1:8765 — {instruction}.", flush=True)
     if args.open:
         def open_when_ready():
             for _ in range(30):
@@ -195,4 +217,4 @@ if __name__ == "__main__":
                 except OSError:
                     time.sleep(.3)
         threading.Thread(target=open_when_ready, daemon=True).start()
-    uvicorn.run(create_app(), host="127.0.0.1", port=8765, access_log=False)
+    uvicorn.run(app, host="127.0.0.1", port=8765, access_log=False)

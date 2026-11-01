@@ -24,4 +24,4 @@ if [ ! -d ui/node_modules ]; then
   (cd ui && npm ci)
 fi
 (cd ui && npm run build)
-exec "$AMBI_UV" run --locked python server.py --open
+exec "$AMBI_UV" run --locked python server.py --open "$@"

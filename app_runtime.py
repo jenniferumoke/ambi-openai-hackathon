@@ -26,9 +26,10 @@ class UnavailableWorker:
 
 
 class AppRuntime:
-    def __init__(self, memory):
+    def __init__(self, memory, *, demo_profile=None):
         self.memory = memory
-        self.hub = ObservationHub(mode="ambient")
+        self.demo_profile = demo_profile
+        self.hub = ObservationHub(mode="ellis_demo" if demo_profile else "ambient")
         self.hub.unavailable("computer", "session_not_started", status="disabled")
         self.camera = FastCamera(self.hub)
         self.status = "idle"
@@ -81,6 +82,10 @@ class AppRuntime:
             self.audio.microphone_enabled = self.microphone_enabled
 
     async def _decisions(self):
+        if self.demo_profile is not None:
+            from eval.test.demo import DemoLoop
+            await DemoLoop(self, self.demo_profile).run()
+            return
         from openai import AsyncOpenAI
         async with AsyncOpenAI(max_retries=0, timeout=3) as client:
             await AmbientLoop(self, AmbientClassifier(client, os.getenv("DECISIONS_MODEL", "gpt-6-luna"))).run()
@@ -117,7 +122,7 @@ class AppRuntime:
             raise ValueError("Add OPENAI_API_KEY to the local .env file, then restart the server.")
         self.status, self.error = "connecting", None
         self.suggestion = None
-        self.hub = ObservationHub(mode="ambient")
+        self.hub = ObservationHub(mode="ellis_demo" if self.demo_profile else "ambient")
         self.camera = FastCamera(self.hub)
         self.activity = TurnActivity()
         self.task = asyncio.create_task(self._run(observe_screen))
