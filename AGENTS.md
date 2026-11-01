@@ -38,7 +38,7 @@ design. There is no account or multi-user API.
   `./scripts/start.sh` syncs locked Python dependencies, installs UI packages if
   needed, builds the test UI, and starts `server.py --open` on port 8765.
   Use `--demo ellis` for isolated sample data; add `--no-autostart` to
-  wait for Start session. Normal and sample sessions share Decisions behavior.
+  wait for Start session. Normal and sample sessions share model-driven behavior.
 - Put `OPENAI_API_KEY` in the ignored root `.env` for voice, Decisions, and
   computer work. Do not expose it to a browser. Camera cues and local memory
   can work without it. `.env.example` lists configuration knobs.
@@ -294,9 +294,9 @@ Repeated scores update `state.camera` without adding rows. The separate
 `data/ambi_cues.sqlite3` journal persists cue changes across server restarts,
 stores no images/audio, and is pruned to 24 hours and 500 events. The journal
 is not user memory. `POST /api/camera-off` clears live state but does not erase
-history. In normal mode the five `*_look` cues cannot initiate proactive offers;
-they can shape delivery of an already-requested reply. Only the original movement
-cues can initiate a proactive Decisions check. `neutral` never initiates offers
+history. All non-neutral cues, including `*_look` cues, can request model evaluation.
+The model considers screen evidence and memory and may choose silence. It generates
+the offer title, wording and proposed task; cues do not select preset responses. `neutral` never initiates offers
 and resets voice delivery to its default. None of these labels establishes
 emotion, concentration, or alertness.
 
@@ -372,7 +372,7 @@ the user must explicitly accept it or make a direct request. `stop-task` cancels
 future worker actions but cannot undo actions already performed. A successful
 computer report can be saved as `kind:"result"` memory.
 
-Normal-mode Decisions failures retry with bounded backoff while context remains
+Intervention-model failures retry with bounded backoff while context remains
 fresh. A busy voice transport retains the decision for retry; only a committed
 voice send consumes the offer/cooldown or publishes its card. Held camera cues
 keep one episode while packets remain fresh; a two-second packet gap starts a
@@ -406,8 +406,8 @@ editable PairMatch copy. It preloads fictional background data into voice contex
 use `--no-autostart` for the Start session button flow. `observations.mode` remains
 `ellis_demo` as a context marker; routes and cue schema are unchanged.
 
-Demo and normal sessions both use AmbientLoop and the Decisions classifier,
-including normal cooldowns and display-only composite cues. There are no fixed
+Demo and normal sessions both use AmbientLoop and the structured intervention model,
+including normal cooldowns and contextual cue evaluation. There are no fixed
 greetings, response templates, cue-to-action mappings, or shortcut timers.
 Only identity, preferences, history, memory and local source files are supplied.
 Suggestions remain proposals requiring user acceptance before action.

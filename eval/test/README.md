@@ -11,7 +11,7 @@ and desktop permissions.
 
 The profile supplies identity, preferences, activity history and unfinished work.
 It contains no scripted greeting, response catalog, facial-cue action mappings,
-or expected answers. The normal Decisions classifier determines whether to
+or expected answers. The normal structured intervention model determines whether to
 suggest something; normal cooldowns and user-acceptance requirements apply.
 A successful launch is not evidence of a successful proactive response.
 

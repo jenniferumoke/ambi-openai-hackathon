@@ -84,7 +84,7 @@ class AppRuntime:
 
     async def _decisions(self):
         from openai import AsyncOpenAI
-        async with AsyncOpenAI(max_retries=0, timeout=3) as client:
+        async with AsyncOpenAI(max_retries=0, timeout=10) as client:
             await AmbientLoop(self, AmbientClassifier(client, os.getenv("DECISIONS_MODEL", "gpt-6-luna"))).run()
 
     def quiet_reason(self):

@@ -10,7 +10,7 @@ import pytest
 from openai import AsyncOpenAI
 from starlette.testclient import TestClient
 
-from ambient import AmbientClassifier, AmbientLoop, CuePacket, FastCamera
+from ambient import Intervention, AmbientClassifier, AmbientLoop, CuePacket, FastCamera
 from app_runtime import AppRuntime
 from cue_store import CueStore
 from memory_store import MemoryStore
@@ -71,7 +71,7 @@ def ambient_runtime(tmp_path, monkeypatch):
 
 async def test_transient_decision_failure_retries_same_cue_after_backoff(ambient_runtime):
     runtime, now = ambient_runtime
-    classifier = SimpleNamespace(decide=AsyncMock(side_effect=[TimeoutError(), "offer_task_help"]))
+    classifier = SimpleNamespace(decide=AsyncMock(side_effect=[TimeoutError(), Intervention(action="offer_task_help", title="Test offer", text="Inspect the failure?", task="Inspect the failure")]))
     loop = AmbientLoop(runtime, classifier)
     await loop.step()
     assert runtime.suggestion is None and loop.last_key is None
@@ -86,7 +86,7 @@ async def test_transient_decision_failure_retries_same_cue_after_backoff(ambient
 
 async def test_busy_voice_retries_cached_decision_without_consuming_offer_or_cooldown(ambient_runtime):
     runtime, _ = ambient_runtime
-    classifier = SimpleNamespace(decide=AsyncMock(return_value="offer_task_help"))
+    classifier = SimpleNamespace(decide=AsyncMock(return_value=Intervention(action="offer_task_help", title="Test offer", text="Inspect the failure?", task="Inspect the failure")))
     runtime.session.model.send_proactive_response.side_effect = [False, True]
     loop = AmbientLoop(runtime, classifier)
     await loop.step()
@@ -116,14 +116,14 @@ async def test_normal_offer_rechecks_context_at_socket_send(ambient_runtime, cha
             runtime.focus = True
         return send_if()
     runtime.session.model.send_proactive_response.side_effect = send
-    loop = AmbientLoop(runtime, SimpleNamespace(decide=AsyncMock(return_value="offer_task_help")))
+    loop = AmbientLoop(runtime, SimpleNamespace(decide=AsyncMock(return_value=Intervention(action="offer_task_help", title="Test offer", text="Inspect the failure?", task="Inspect the failure"))))
     await loop.step()
     assert runtime.suggestion is None and loop.last_offer == float("-inf")
 
 
 async def test_a_declined_decision_is_not_repeated_for_every_frame(ambient_runtime):
     runtime, now = ambient_runtime
-    classifier = SimpleNamespace(decide=AsyncMock(return_value="none"))
+    classifier = SimpleNamespace(decide=AsyncMock(return_value=Intervention(action="none", title="", text="", task=None)))
     loop = AmbientLoop(runtime, classifier)
     await loop.step()
     for sequence in range(1, 7):
@@ -173,7 +173,7 @@ def test_missing_face_and_out_of_order_packet_do_not_restore_a_cue():
     assert hub.snapshot(now=100.3)["camera"]["payload"]["cues"] == []
 
 
-def test_new_look_cues_are_valid_but_do_not_trigger_proactive_decisions():
+def test_all_look_cues_reach_model_evaluation():
     from ambient import AmbientLoop
 
     cues = ["confused_look", "concentrating_look", "irritated_look", "tired_look", "sleepy_look"]
@@ -182,7 +182,7 @@ def test_new_look_cues_are_valid_but_do_not_trigger_proactive_decisions():
     camera.ingest(packet(cues=cues), now=100)
     snapshot = hub.snapshot(now=100)
     assert set(snapshot["camera"]["payload"]["cues"]) == set(cues)
-    assert AmbientLoop.key(snapshot) is None
+    assert AmbientLoop.key(snapshot) is not None
     camera.ingest(packet(1, cues=["furrowed_brow", "confused_look"]), now=100.1)
     assert AmbientLoop.key(hub.snapshot(now=100.1)) is not None
 
@@ -200,23 +200,21 @@ def test_neutral_replaces_recent_expression_without_a_proactive_episode():
     assert AmbientLoop.key(snapshot) is None
 
 
-async def test_decisions_request_uses_context_and_no_camera_image(tmp_path):
-    requests = []
-    async def handler(request):
-        requests.append(json.loads(request.content))
-        return httpx2.Response(200, json={"model": "gpt-6-luna", "answers": [{
-            "type": "choice", "name": "intervention", "choice": "offer_task_help", "confidence": .9,
-            "probabilities": [{"value": "none", "probability": .05},
-                              {"value": "offer_task_help", "probability": .9},
-                              {"value": "acknowledge_progress", "probability": .05}],
-        }], "usage": {"input_tokens": 10, "output_tokens": 0, "total_tokens": 10}})
+async def test_model_generates_offer_from_context_without_images(tmp_path):
+    decision = Intervention(action="offer_task_help", title="Inspect the error?", text="Shall I examine the failing case?", task="Inspect the failing test")
+    parse = AsyncMock(return_value=SimpleNamespace(output_parsed=decision))
+    client = SimpleNamespace(responses=SimpleNamespace(parse=parse))
     store = MemoryStore(tmp_path / "db")
-    store.put(kind="task", title="Prepare pitch")
-    async with AsyncOpenAI(api_key="offline", http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler))) as client:
-        assert await AmbientClassifier(client).decide({"camera": "furrowed_brow"}, store) == "offer_task_help"
-    assert requests[0]["model"] == "gpt-6-luna"
-    assert "Prepare pitch" in requests[0]["input"] and "input_image" not in json.dumps(requests)
-    store.close()
+    try:
+        store.put(kind="task", title="Prepare pitch")
+        assert await AmbientClassifier(client).decide({"camera": "confused_look"}, store) == decision
+        request = parse.call_args.kwargs
+        assert "Prepare pitch" in request["input"]
+        assert "input_image" not in request["input"]
+        assert request["store"] is False
+    finally:
+        store.close()
+
 
 
 async def test_late_decision_cannot_speak_after_user_starts(tmp_path):
@@ -436,3 +434,15 @@ def test_websocket_requires_local_origin_and_token(tmp_path):
             state = ws.receive_json()
             assert state['status'] == 'idle'
             assert state['proactive'] == {'status': 'paused', 'reason': 'session_not_connected'}
+
+
+@pytest.mark.parametrize("cue", ["confused_look", "concentrating_look", "irritated_look", "tired_look", "sleepy_look"])
+async def test_composite_cue_uses_model_wording_without_running_tools(ambient_runtime, cue):
+    runtime, now = ambient_runtime
+    runtime.camera.ingest(packet(1, [cue]), now=100)
+    choice = Intervention(action="offer_task_help", title="Model title", text="A context-specific offer?", task="Inspect only")
+    classifier = SimpleNamespace(decide=AsyncMock(return_value=choice))
+    await AmbientLoop(runtime, classifier).step()
+    classifier.decide.assert_awaited_once()
+    assert runtime.suggestion['text'] == choice.text
+    assert runtime.suggestion['task'] == choice.task

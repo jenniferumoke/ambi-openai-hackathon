@@ -139,7 +139,7 @@ does not trigger a demo offer. Focus and user/activity gates always take priorit
 A held cue keeps its episode while fresh packets support it. After release,
 unclassified frames may retain that episode for four seconds after its last
 supporting frame; confirmed neutral, face loss, and camera-off clear it. A
-two-second packet gap starts a new episode. Normal-mode Decisions failures retry
+two-second packet gap starts a new episode. Intervention-model failures retry
 with bounded backoff. Busy voice sends retry the already computed decision while
 context remains relevant; a failed/declined send does not consume the cooldown
 or create a suggestion card. The normal 45-second cooldown remains unchanged.
@@ -197,7 +197,7 @@ and sample amplitude; live listening is needed to assess prosody and naturalness
 
 ## Ellis sample context
 
-Ellis loads fictional memory and files, using the normal Decisions classifier.
+Ellis loads fictional memory and files, using the normal structured intervention model.
 No fixed responses or cue-to-action catalog are supplied.
 
 ## Local detector rules

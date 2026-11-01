@@ -114,7 +114,7 @@ flowchart LR
     Vision --> Filter[Short cue filter / 3 supporting frames]
     Filter --> Hub[Timestamped observation hub]
     Screen[Read-only screen observer / Terra] --> Hub
-    Memory[(Local SQLite memory)] --> Decisions[Decisions API / gpt-6-luna]
+    Memory[(Local SQLite memory)] --> Decisions[Responses API / gpt-6-luna]
     Hub --> Decisions
     Decisions --> Gate[Quiet / focus / freshness / cooldown gates]
     Gate --> UI[Suggestion card]
