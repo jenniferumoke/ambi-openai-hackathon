@@ -16,7 +16,7 @@ Open **http://127.0.0.1:8766**. The dashboard uses the existing Python dependenc
 
 ## The core journey
 
-1. On **Profiles**, load Rowan, Ellis or Nora. This creates a fresh source folder and memory database under ignored `data/bench/profiles/<session>/`. Your normal AMBI database is not replaced.
+1. Open Rowan, Ellis or Nora using their profile card. This resumes their latest test (or their running AMBI session); the first visit creates a source folder and memory database under ignored `data/bench/profiles/<session>/`. Use **Start a fresh test for this profile** below the results when you want to reset the test data. Previous results stay saved locally. Your normal AMBI database is not replaced.
 2. Choose a scenario. Open its source or **Open demo workspace**. For Ellis, **Open coding session** opens the generated workspace, function and failing log through your installed `code` command (VS Code or Cursor).
 3. Click **Launch AMBI with this memory**, then **Open AMBI**. The unmodified team app runs on port 8765 with the selected database and no default hackathon-memory seed. If another app already uses that port, the lab refuses to replace it.
 4. In AMBI, start a session and wait for its greeting to finish. Back in the lab, click **Begin observation**, then show the scenario source and keep the reviewer instructions out of the observed screen. Do not ask AMBI for the expected answer. Observe for about 60 seconds.

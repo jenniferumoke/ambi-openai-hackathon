@@ -47,6 +47,7 @@ export function createProfileUI({ api, action, notice }) {
     document.getElementById("profile-catalog").replaceChildren(
       ...items.map((p) => {
         const card = el("article", null, "profile-card");
+        card.dataset.profile = p.id;
         card.append(
           el("h2", p.name),
           el("span", p.role, "subtle"),
@@ -60,14 +61,13 @@ export function createProfileUI({ api, action, notice }) {
         card.append(
           meta,
           button(
-            "Load " + p.name.split(" ")[0] + "’s profile",
+            "Open " + p.name.split(" ")[0] + "’s profile",
             async () => {
               scenarioId = null;
-              accept(await api("profile-prepare", { profile: p.id }));
-              notice(
-                "Profile loaded into a fresh folder and isolated memory database.",
-                false,
-              );
+              const existing = sessions.find(
+                (s) => s.profile.id === p.id && s.id === app.session_id && app.running,
+              ) || sessions.find((s) => s.profile.id === p.id);
+              accept(existing || await api("profile-prepare", { profile: p.id }));
             },
             "primary",
           ),
@@ -82,12 +82,18 @@ export function createProfileUI({ api, action, notice }) {
     const next = JSON.stringify([sessions, app]);
     if (next === signature) return;
     signature = next;
-    if (!selectedId && sessions.length) selectedId = sessions[0].id;
+    if (!selectedId && sessions.length)
+      selectedId = sessions.find((s) => app.running && s.id === app.session_id)?.id || sessions[0].id;
     render();
   }
   function render() {
     const target = document.getElementById("profile-session");
     const item = sessions.find((s) => s.id === selectedId);
+    for (const card of document.querySelectorAll(".profile-card")) {
+      const selected = card.dataset.profile === item?.profile.id;
+      card.classList.toggle("selected", selected);
+      card.querySelector("button").setAttribute("aria-pressed", String(selected));
+    }
     if (!item) {
       target.replaceChildren(
         el(
@@ -107,24 +113,8 @@ export function createProfileUI({ api, action, notice }) {
     const key = item.id + ":" + scenarioId,
       draft = drafts.get(key) || { verdict: "not_tested", notes: "" };
     const running = app.running && app.session_id === item.id;
-    const head = el("div", null, "section-heading"),
-      picker = el("select");
-    picker.setAttribute("aria-label", "Prepared profile session");
-    sessions.forEach((s) => {
-      const opt = el(
-        "option",
-        `${s.profile.name} · ${new Date(s.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
-      );
-      opt.value = s.id;
-      opt.selected = s.id === item.id;
-      picker.append(opt);
-    });
-    picker.onchange = () => {
-      selectedId = picker.value;
-      scenarioId = null;
-      render();
-    };
-    head.append(el("h2", `${profile.name} / ${profile.role}`), picker);
+    const head = el("div", null, "section-heading");
+    head.append(el("h2", `${profile.name} / ${profile.role}`));
     const steps = el("div", null, "profile-steps");
     for (const [i, label, done] of [
       [1, "Memory loaded", true],
@@ -428,6 +418,11 @@ export function createProfileUI({ api, action, notice }) {
       setup,
       grid,
       reviews,
+      button("Start a fresh test for this profile", async () => {
+        scenarioId = null;
+        accept(await api("profile-prepare", { profile: profile.id }));
+        notice("Fresh test prepared. Previous results are still saved locally.", false);
+      }, "text-button"),
       el(
         "p",
         `Fictional snapshot ${profile.snapshot.slice(0, 10)} · fixture ${profile.version} · isolated session ${item.id.slice(0, 8)} · local sources and memory only`,
