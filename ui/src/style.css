@@ -55,6 +55,7 @@ h2 { font-family: Georgia, serif; font-size: 28px; line-height: 1.2; font-weight
 #agent-transcript { font-size: 15px; line-height: 1.6; font-weight: 400; width: 100%; max-height: 7.2em; overflow-y: auto; overflow-wrap: anywhere; white-space: pre-wrap; text-align: center; scrollbar-width: thin; }
 #agent-transcript:empty { display: none; }
 #hero-subtitle { font-family: Georgia, serif; color: #60765f; font-size: 18px; line-height: 1.5; text-align: center; }
+#hero-subtitle:empty { display: none; }
 #agent-transcript:not(:empty) + #hero-subtitle { font-family: inherit; font-size: 11px; }
 .session-controls { width: 100%; }
 .session-buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }

@@ -158,7 +158,7 @@ function render(next) {
   $('#connection').classList.toggle('online', connected);
   $('#connection').innerHTML = `<i></i> ${escape(connected ? 'Right here with you' : state.status === 'connecting' ? 'Connecting…' : state.status === 'error' ? 'Needs attention' : 'Ready when you are')}`;
   $('#mode-pill').textContent = state.focus ? 'FOCUS' : connected ? state.phase.toUpperCase() : state.status === 'connecting' ? 'CONNECTING' : 'STANDBY';
-  $('#hero-subtitle').innerHTML = connected ? state.focus ? 'Quiet company. I’ll respond when you ask.' : 'Speak naturally, or type a thought below.' : 'I’ll keep the context.<br>You keep your train of thought.';
+  $('#hero-subtitle').textContent = connected ? state.focus ? 'Quiet company. I’ll respond when you ask.' : 'Speak naturally, or type a thought below.' : '';
   $('#start').innerHTML = state.status === 'stopping' ? 'Stopping…' : active ? '■ End session' : '<span class="play-icon">▶</span> Start session';
   $('#start').disabled = state.status === 'stopping' || !serverReady;
   $('#message').disabled = $('#send').disabled = !connected;
@@ -191,8 +191,7 @@ async function connect() {
     const response = await fetch('/api/bootstrap', { cache: 'no-store' });
     if (!response.ok) throw new Error('Local app is unavailable');
     const data = await response.json(); token = data.token; serverReady = true;
-    const missing = Object.entries(data.permissions).filter(([, granted]) => !granted).map(([name]) => name);
-    const warning = !data.api_configured ? 'Add your OpenAI API key to .env and restart the local server to enable voice. Memory and local camera detection are available now.' : missing.length ? `For computer help, allow ${missing.join(' and ')} for your terminal in macOS Privacy & Security, then restart Ambi. Voice and memory are still available.` : '';
+    const warning = !data.api_configured ? 'Add your OpenAI API key to .env and restart the local server to enable voice. Memory and local camera detection are available now.' : '';
     $('#setup-warning').textContent = warning; $('#setup-warning').classList.toggle('hidden', !warning);
     resetAgentTranscript(data.state.transcript);
     render(data.state);
