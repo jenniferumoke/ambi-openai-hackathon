@@ -1,225 +1,128 @@
-# Ambi
+<h1 align="center">ambi.</h1>
 
-**Ambi is an ambient computer-use agent.** It remembers the tasks
-and notes you choose to save, recognises  emotions and activity on your
-screen, and offers timely help through voice or a suggestion card. When you ask
-it to take on a computer task, a separate worker can use your desktop while the
-conversation continues.
-Built with OpenAI Realtime API, Decisions API and Agents SDK with gpt-6.1-terra
+<h3 align="center">A little less on your mind.</h3>
 
-The core demo journey is: **open Ambi → hear a greeting grounded in saved context
-→ work normally → receive a relevant offer → accept it or ask for help → see a
-computer task completed and remembered.** Facial cues inform whether Ambi might
-offer help.
+<p align="center">
+  An ambient computer-use agent that keeps the context, offers a hand, and lets you keep your train of thought.<br>
+  Voice · Local memory · Camera cues · Computer use
+</p>
 
+<p align="center">Built with OpenAI Realtime API, Decisions API, and Agents SDK with <code>gpt-6.1-terra</code>.</p>
 
+<p align="center">
+  <a href="#meet-ambi">Meet Ambi</a> ·
+  <a href="#try-it-on-your-mac">Quickstart</a> ·
+  <a href="eval/test/README.md">One-minute demo</a> ·
+  <a href="docs/LOCAL-DEVELOPMENT.md">Developer guide</a>
+</p>
 
-This hackathon prototype has a Python backend and a Vite/JavaScript interface.
-Tasks, notes, and email excerpts are entered locally; there is no live email or
-reminders integration. It is built for one user on one Mac.
+![Ambi's macOS demo interface: saved context on the left, animated companion in the center, and local camera-cue controls on the right. Fictional Ellis session.](docs/media/ambi-overview.png)
 
-## Start the demo
+<p align="center"><em>The current demo frontend, captured locally with fictional Ellis context. Camera is off.</em></p>
 
-The **one-minute Ellis developer roleplay is the default**. Run
-`./scripts/start.sh`. It preloads the fictional profile, starts
-voice automatically, and uses an explicit cue/action catalog with a shorter
-cooldown. Turn on Camera cues in the browser. See
-[the Ellis demo guide](eval/test/README.md) for the mapping and timed script.
-Each launch uses separate demo memory and a disposable PairMatch workspace.
-Use `./scripts/start.sh --no-demo` for ordinary saved memory and the standard
-Decisions policy, or add `--no-autostart` to load Ellis and wait for Start session.
+## Meet Ambi
 
-From the repository root, create a local API-key file, then start the app:
+You come back to your Mac with a half-finished task and a head full of context. Ambi remembers the notes you chose to save, greets you with that context, and can offer help when there is a useful opening. Ask for a concrete computer task, and a separate worker can take it on while you keep talking.
+
+**Open Ambi → pick up the thread → receive an offer → choose whether to act.**
+
+![Illustrative Ambi session moving through a greeting, a suggestion, computer work, and a completion pose. All session events are staged fixtures.](docs/media/ambi-preview.gif)
+
+*An illustrative UI sequence, rendered in the real interface with staged session states. It shows the interaction design, not a recorded live AI run. [Media provenance and reproduction](docs/media/README.md).*
+
+| Moment | What Ambi brings |
+| --- | --- |
+| **Pick up where you left off** | A spoken opening grounded in saved tasks, notes, and preferences. |
+| **Stay in your flow** | Local camera cues and enabled screen context can inform a relevant offer. Focus mode keeps unsolicited offers quiet. |
+| **Choose the next step** | Accept a suggestion, dismiss it, or ask directly. A facial cue never grants permission to act. |
+| **Get a hand on your Mac** | A separate computer worker can click and type while conversation continues. Stop controls cancel future worker actions. |
+| **Keep what matters** | Save useful notes and worker reports in local SQLite memory, with their source. |
+
+## A thought, before a task
+
+![Ambi offering to help fictional developer Ellis inspect the failing PairMatch test, with Yes, help me and Not now buttons. Staged session state.](docs/media/ambi-suggestion.png)
+
+The offer stays a choice. Opening and proactive voice turns have tools disabled. Accepting the current offer or making an explicit request authorizes the specific task. Ambi can also correctly stay quiet.
+
+Camera cues describe visible facial movements. They do not establish feelings, concentration, or alertness. In normal mode, the composite “look” labels can shape voice delivery but do not initiate offers.
+
+## Keep talking while Ambi works
+
+![Ambi's working pose and computer-task card, with a Stop computer task control. Illustrative fixture, not a live task execution.](docs/media/ambi-worker.png)
+
+The voice agent can hand a task to a separate computer worker. Its activity card shows the task and eventual report. Saying “stop” or choosing **Stop computer task** cancels future actions; it does not undo earlier clicks or edits.
+
+## Try it on your Mac
+
+Use **macOS**, **Python 3.12 via [uv](https://docs.astral.sh/uv/getting-started/installation/)**, **Node.js 22+**, and **Chrome**.
 
 ```sh
+git clone https://github.com/jenniferumoke/ambi-openai-hackathon.git
+cd ambi-openai-hackathon
 cp .env.example .env
-# Add your OPENAI_API_KEY to .env.
-uv sync --locked --python 3.12
-(cd ui && npm ci && npm run build)
-uv run python server.py --open
+# Add OPENAI_API_KEY to your private .env file.
+./scripts/start.sh --no-autostart
 ```
 
-The last command starts Python and opens <http://127.0.0.1:8765>.
-Voice starts automatically: Ambi speaks first using Ellis's saved context,
-without a voice prompt. Camera detection has its own switch. Use Chrome for the demo. Keep
-Terminal running; **Control+C** shuts down the server.
+The script installs locked dependencies, builds the interface, and opens **http://127.0.0.1:8765** with fictional developer **Ellis** and a disposable PairMatch workspace. Click **Start session** when ready. Turn on **Camera cues** separately. For the timed rehearsal, follow the [one-minute Ellis guide](eval/test/README.md).
 
-For a fresh checkout, install [uv](https://docs.astral.sh/uv/getting-started/installation/)
-and Node.js 22 or newer. The commands install the pinned Python 3.12 dependencies
-and UI packages. The first build downloads the face model; later runs use local
-assets. Voice, Decisions, and screen analysis require internet/API access. Keep
-`.env` private; it is ignored by Git.
+- **Default demo:** `./scripts/start.sh` starts Ellis voice automatically. Its cue-to-offer catalog is deterministic; it replaces normal Decisions selection.
+- **Your own saved context:** `./scripts/start.sh --no-demo` uses ordinary local memory and the normal Decisions policy.
+- **Permissions:** the app launching Python usually needs macOS Accessibility and Screen Recording for desktop work; allow microphone access and Chrome camera access when using those features. See [setup and troubleshooting](docs/LOCAL-DEVELOPMENT.md#mac-permissions).
 
-### Mac permissions
+Local memory and camera cues can be explored without an API key. Voice, Decisions, and screen analysis need API access. The first UI build downloads the face model. **End session** stops voice; closing the browser alone does not. **Control+C** stops the server.
 
-The browser displays Ambi, but Python runs voice and desktop actions. macOS gives
-desktop permissions to the app launching Python—normally Terminal.
+## How the pieces fit
 
-1. **System Settings → Privacy & Security → Accessibility → Terminal** allows
-   the computer worker to click and type.
-2. **Screen & System Audio Recording → Terminal** allows screen understanding.
-   Some macOS versions call this **Screen Recording**.
-3. Allow microphone access when asked. Choose the Mac microphone and speakers
-   in **System Settings → Sound**; the audio engine uses system defaults.
-4. Quit/reopen Terminal if macOS requests it, then launch again. Allow camera
-   access in Chrome when switching on **Camera cues**.
+![Ambi architecture: local camera cues and enabled screen context inform gated offers; explicit user requests reach voice tools and the computer worker; local memory supplies context.](docs/architecture/ambi-architecture.png)
 
-If macOS cannot start voice processing for the selected audio route, Ambi uses
-the compatible audio backend. Voice and typed turns still work; the microphone
-is muted during playback, so spoken interruptions of replies are unavailable.
-Choosing the built-in microphone and speakers in **System Settings → Sound**
-may restore voice processing.
+[Open the editable architecture diagram and mode notes](docs/architecture/README.md).
 
-If launching inside Codex, those permissions belong to Codex instead. Memory and
-local camera can be tried without desktop access. The UI reports missing desktop
-permissions and disables computer control. Run `uv run python main.py --check`
-for a device/permission report.
+| Layer | Implementation |
+| --- | --- |
+| **Companion interface** | Vite / JavaScript, animated Rive character, controls for memory, camera, focus, and task cancellation. This is the repository's test and demo frontend. |
+| **Local awareness** | MediaPipe Face Landmarker in a browser worker; numeric cues go to Python. Enabled screen observation produces tentative context. |
+| **Offer selection** | Normal mode uses the Decisions API (`gpt-6-luna`) with freshness, quiet, focus, and cooldown gates. Ellis demo mode uses its explicit catalog. |
+| **Conversation** | OpenAI Realtime (`gpt-realtime-2.1`), with context tools and cue-informed delivery. |
+| **Computer worker** | OpenAI Agents SDK / `gpt-6.1-terra`, separate from the voice conversation. |
+| **Memory** | Source-attributed local SQLite tasks, notes, preferences, pasted email excerpts, and worker reports. |
 
-## Two-minute walkthrough of normal mode
+## Rehearse with a whole fictional context
 
-Launch with `./scripts/start.sh --no-demo` for this walkthrough. For the default
-Ellis session, use the [one-minute rehearsal](eval/test/README.md#rehearse-the-minute).
+![AMBI-Bench profile lab showing fictional users and scenarios for reviewing proactive suggestions.](docs/media/ambi-bench.png)
 
-1. Add a task or note with **+**. The initial task is the real hackathon brief.
-   Email excerpts can be pasted; no inbox is connected.
-2. **Start session** and let the opening greeting play. Say “Help me make a short
-   demo checklist and save it as a note.” The note appears under **Memory**.
-3. Turn on the camera in good light. A brief smile or brow furrow should move the
-   cue meters. An event remains available after your face relaxes, so you need
-   not hold an expression through an API call. Relevant context and a quiet
-   conversation can lead to an offer. Offers have a 45-second cooldown.
-4. Ask for a small concrete desktop task, such as creating a checklist in an open
-   text editor. The worker card shows activity. Say “stop” or use **Stop computer
-   task** to cancel. Let the worker use the mouse while it is running.
-5. **End session**, refresh, and show that memory persists. Start again for a fresh
-   greeting. **Focus mode** suppresses unsolicited offers while allowing requests.
-
-Cue scores are facial geometry, not emotion probabilities. The five look labels
-describe visible combinations such as a raised brow with narrowed eyes, a
-yawn-like movement, or prolonged eye closure; they cannot establish confusion,
-concentration, irritation, tiredness, or sleepiness. In normal mode they do not
-initiate proactive offers. The classifier can correctly choose to stay
-quiet; a smile alone does not prove work is finished.
-
-Voice delivery adapts to fresh cues when each reply starts: smiles select a
-playful, upbeat tone; tired/sleepy cues select calm, soothing delivery with
-slightly quieter playback; brow/frown/confused cues select patient reassurance.
-Neutral or unavailable camera cues restore the default voice on the next reply.
-These hints change delivery, never trigger speech or computer actions, and do
-not change the Mac's volume. Explicit tone requests take precedence in the prompt.
-
-## Architecture
-
-This diagram shows normal mode (`--no-demo`). The default Ellis demo replaces
-Decisions selection with its stored cue/action catalog and keeps confirmation
-before actions.
-
-```mermaid
-flowchart LR
-    Camera[Browser camera] --> Vision[Local MediaPipe worker / up to 15 fps]
-    Vision --> Filter[Short cue filter / 3 supporting frames]
-    Filter --> Hub[Timestamped observation hub]
-    Screen[Read-only screen observer / Terra] --> Hub
-    Memory[(Local SQLite memory)] --> Decisions[Decisions API / gpt-6-luna]
-    Hub --> Decisions
-    Decisions --> Gate[Quiet / focus / freshness / cooldown gates]
-    Gate --> UI[Suggestion card]
-    Gate --> Voice[Realtime / gpt-realtime-2.1]
-    Memory --> Startup[One opening greeting]
-    Startup --> Voice
-    User[User voice or text] --> Voice
-    Voice --> Notes[Context and note tools]
-    Notes --> Memory
-    Voice --> Worker[Agents SDK / gpt-6.1-terra]
-    Worker --> Desktop[Native desktop actions]
-    Worker --> Memory
-```
-
-The camera worker sends numeric cues to Python, without camera-image requests to
-Decisions. A classic Web Worker runs the real model off the UI thread. It requires
-one visible face, rejects stale/out-of-order data, and retains brief cues for four
-seconds. The old two-second image classifier is retained only in the legacy CLI.
-
-Decisions selects `none`, `offer_task_help`, or `acknowledge_progress`; it does not
-execute actions. The runtime rechecks freshness and conversation/computer activity
-after the API responds. Startup and proactive turns have tools disabled. A later
-user request or accepted suggestion can use the normal tools. Async Realtime tool
-calls let computer work run while the conversation continues.
-
-Memory is ignored `data/ambi.sqlite3`: tasks, notes, pasted emails, explicitly
-requested preferences, and source-labelled worker reports. Inferred feelings are
-never saved as personal memory. A separate local cue journal stores visible cue
-changes for up to 24 hours or 500 events, without images; see
-[camera cue API](docs/camera-cues-api.md) for the teammate frontend contract.
-Bounded retrieval prioritizes open tasks and preferences. Saved text and sensor
-observations are context, never authorization. Delete controls remove memory
-records; start a new voice session to discard old conversational context too.
-
-The API key stays in Python; the browser uses a local session token. Audio,
-relevant memory, and enabled screen screenshots go to OpenAI. Camera cues are
-computed locally, but screen screenshots can include the visible camera preview.
-This is a single-user, loopback-only prototype, not an internet-facing server.
-
-## Timing and limits
-
-- The synthetic filter test detects three frames spaced 67ms apart in **134ms**.
-  This is not a measured face-to-speech guarantee. Real lighting, head angle,
-  hardware, inference time, and network latency affect results.
-- Vision inference is shown as **ms/frame**. Decisions has a 2.5-second deadline;
-  slow or stale results are discarded. Screen context samples every five seconds.
-- macOS echo cancellation and transcription-confirmed turns reduce playback echo
-  and keyboard triggers. They are **not speaker identification or source
-  separation**. Rehearse with the actual room and audio setup.
-- The transport adapter uses internals of the pinned Agents SDK to coordinate
-  proactive and user turns. Keep the lockfile and rerun tests before upgrading.
-- Closing the browser does not end Python voice. Use **End session** or stop
-  Terminal. Moving the mouse to a primary-screen corner triggers the inherited
-  computer failsafe.
-
-## Development
-
-```sh
-uv sync --locked --python 3.12
-uv run pytest -q
-cd ui
-npm ci
-npm test
-npm run build
-cd ..
-uv run python server.py
-```
-
-Rebuild after UI edits; restart the server after Python edits. The production
-build is the verified demo path for the MediaPipe classic worker. The original
-CLI is `uv run python main.py`; see [docs/prototype.md](docs/prototype.md).
-Generated assets, credentials, local memory, and screenshots are ignored by Git.
-
-## AMBI-Bench
-
-Run the separate local evaluation dashboard:
+**AMBI-Bench** prepares fictional profiles, source files, and isolated memory so a reviewer can observe whether an offer was useful. Rowan has community paperwork, Ellis has a paused debugging task, and Nora has travel planning to finish. It records human reviews rather than an automatic benchmark score.
 
 ```sh
 uv run python -m bench --serve
 ```
 
-Open <http://127.0.0.1:8766> to load fictional user profiles with two weeks of
-activity, isolated demo memory, and realistic invoices, emails or coding sessions.
-Launch AMBI with a profile, observe its proactive suggestion, and save a simple
-review. Starting sensors remains explicit in AMBI. Live sessions need the team's
-API configuration. See [profile-lab setup](bench/README.md) for the workflow,
-local/VNC boundaries and demo instructions.
+Open **http://127.0.0.1:8766**. Loading the lab does not enable sensors. Live sessions need API configuration and explicit session controls. [Profile-lab guide](bench/README.md).
 
-## Credits and provenance
+## Context, with clear boundaries
 
-The voice and desktop worker started from an earlier
-[voice-computer-agent prototype](docs/prototype.md), then gained local memory,
-the ambient decision loop, and this interface for the hackathon. The browser
-camera path uses Google's [MediaPipe Face Landmarker](https://developers.google.com/edge/mediapipe/solutions/vision/face_landmarker/web_js)
-model and the `@mediapipe/tasks-vision` package. Voice, Decisions, and computer
-use run through the OpenAI APIs and Agents SDK linked below. No personal inbox
-data or API credentials are included in the repository.
+Ambi is a **single-user, local macOS hackathon prototype**. The server binds to loopback. Tasks, notes, and email excerpts are entered locally; there is no live inbox or reminders integration.
 
-References checked on 1 November 2026:
-[Decisions](https://developers.openai.com/api/docs/guides/decisions),
-[Realtime Agents SDK](https://openai.github.io/openai-agents-python/realtime/guide/),
-[MediaPipe](https://developers.google.com/edge/mediapipe/solutions/vision/face_landmarker/web_js).
+Camera cues are computed on-device. Audio, relevant saved memory, and enabled screen screenshots go to OpenAI; those screenshots can include the visible camera preview. The API key stays in Python. The separate cue journal retains numeric cue changes for up to 24 hours or 500 events, without camera images. Inferred feelings are never saved as personal memory.
+
+Timing depends on hardware, lighting, permissions, and network/API access. The synthetic three-frame filter result is **134 ms**, not a measured face-to-speech guarantee. The screenshots and animation above do not establish live voice, camera, or desktop-task success. [Detailed behavior and limits](docs/LOCAL-DEVELOPMENT.md#timing-and-limits).
+
+## Built with OpenAI
+
+Ambi combines **OpenAI Realtime**, **Decisions**, and the **Agents SDK** with local memory and on-device camera processing. **OpenAI Codex** helped prepare this README, inspect the current implementation, capture the demo interface, and verify the documentation assets.
+
+The voice and computer worker began with an earlier [voice-computer-agent prototype](docs/prototype.md), then gained local memory, an ambient decision loop, and a companion interface for the hackathon. Camera processing uses Google's [MediaPipe Face Landmarker](https://developers.google.com/edge/mediapipe/solutions/vision/face_landmarker/web_js). Third-party code and assets retain their own licences.
+
+## Explore and develop
+
+- [Developer guide](docs/LOCAL-DEVELOPMENT.md) — full setup, permissions, normal-mode walkthrough, privacy, and checks.
+- [Ellis demo](eval/test/README.md) — cue/action mapping and one-minute rehearsal.
+- [AMBI-Bench](bench/README.md) — fictional profiles and human review workflow.
+- [Camera cue API](docs/camera-cues-api.md) — frontend/backend contract.
+- [Integration guide](AGENTS.md) — state, transport, and source-of-truth files.
+- [Screenshots and animation](docs/media/README.md) — provenance and capture instructions.
+
+```sh
+uv run pytest -q
+(cd ui && npm test && npm run build)
+```

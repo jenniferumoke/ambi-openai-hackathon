@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc">
+<title id="title">Ambi: context becomes an offer, your choice becomes an action</title>
+<desc id="desc">Local MediaPipe camera cues and enabled screen context feed observation freshness checks and offer selection. Normal mode uses Decisions; Ellis uses a catalog. Quiet, focus and cooldown gates lead to a suggestion. Acceptance or a direct user request reaches Realtime tools and the desktop worker. Local SQLite memory supplies context and stores notes and reports.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10" fill="none" stroke="#4e7969" stroke-width="1.7"/></marker></defs>
+<rect width="1440" height="900" rx="24" fill="#fffdf7"/>
+<g font-family="Arial, sans-serif" fill="#183e35">
+<text x="64" y="66" font-size="18" letter-spacing="3">AMBI / HOW IT WORKS</text>
+<text x="64" y="122" font-size="40" font-weight="700">Context becomes an offer.</text>
+<text x="64" y="172" font-size="40" font-weight="700">Your choice becomes an action.</text>
+<text x="64" y="225" font-size="20" fill="#5c7469">Local awareness, a voice conversation, and a separate computer worker.</text>
+<g stroke="#cdd9cb" stroke-width="1.5">
+<rect x="64" y="286" width="286" height="134" rx="18" fill="#eef2e7"/>
+<rect x="64" y="452" width="286" height="134" rx="18" fill="#eef2e7"/>
+<rect x="430" y="286" width="300" height="300" rx="18" fill="#fffdf7"/>
+<rect x="812" y="286" width="252" height="300" rx="18" fill="#eef2e7"/>
+<rect x="1144" y="286" width="232" height="300" rx="18" fill="#183e35" stroke="#183e35"/>
+<rect x="430" y="680" width="634" height="142" rx="18" fill="#eef2e7"/>
+</g>
+<g font-size="23" font-weight="700">
+<text x="88" y="326">Camera cues</text><text x="88" y="492">Screen context</text>
+<text x="456" y="329">Offer selection</text><text x="838" y="329">Your choice</text>
+<text x="1166" y="329" fill="#fffdf7">Voice + tools</text>
+<text x="456" y="723">Local SQLite memory</text>
+</g>
+<g font-size="19" fill="#526c60">
+<text x="88" y="362">MediaPipe on-device</text><text x="88" y="392">Numeric cues to Python</text>
+<text x="88" y="528">Enabled screen observer</text><text x="88" y="558">Tentative AI summaries</text>
+<text x="456" y="373">Fresh observations</text><text x="456" y="412">Normal: Decisions API</text><text x="456" y="445">Ellis: explicit catalog</text>
+<text x="456" y="504">Quiet · focus · cooldown</text><text x="456" y="548">May choose to stay quiet</text>
+<text x="838" y="378">Suggestion card</text><text x="838" y="414">Accept or dismiss</text><text x="838" y="481">Or ask directly</text>
+<text x="838" y="548" font-weight="700">Request / acceptance</text>
+<text x="1166" y="378" fill="#e6eddd">OpenAI Realtime</text><text x="1166" y="414" fill="#e6eddd">Context / note tools</text>
+<text x="1166" y="470" fill="#e6eddd">Separate Agents SDK</text><text x="1166" y="502" fill="#e6eddd">computer worker</text><text x="1166" y="548" fill="#e6eddd">Native desktop actions</text>
+<text x="456" y="763">Tasks · notes · preferences · pasted emails · worker reports</text>
+<text x="456" y="797">Source-attributed context; inferred feelings are never saved.</text>
+</g>
+<g fill="none" stroke="#4e7969" stroke-width="2" marker-end="url(#arrow)">
+<path d="M350 352H390V394H430"/><path d="M350 518H390V478H430"/>
+<path d="M730 432H812"/><path d="M1064 432H1144"/>
+<path d="M580 680V586"/><path d="M1064 750H1258V586"/>
+</g>
+<text x="64" y="865" font-size="17" fill="#5c7469">Single-user macOS prototype · loopback server · no live inbox integration · cues are visible movements, not feelings</text>
+</g></svg>

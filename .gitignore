@@ -13,3 +13,5 @@ ui/public/vision/
 ui/public/models/
 artifacts/
 .ruff_cache/
+
+docs/media/frames/
