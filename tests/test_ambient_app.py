@@ -16,6 +16,7 @@ from cue_store import CueStore
 from memory_store import MemoryStore
 from observation_hub import ObservationHub
 from server import create_app
+from proactive_controller import TurnContext
 
 
 def packet(sequence=0, cues=None, usable=True, stream_id="one"):
@@ -34,6 +35,131 @@ def test_short_cue_is_available_after_expression_relaxes_and_expires():
     assert data["episode"] == episode
     camera.ingest(packet(2), now=104.1)
     assert hub.snapshot(now=104.1)["camera"]["payload"]["cues"] == []
+
+
+def test_continuously_held_cue_keeps_one_episode_past_greeting_and_expires_after_release():
+    hub = ObservationHub()
+    camera = FastCamera(hub)
+    camera.ingest(packet(cues=["furrowed_brow"]), now=100)
+    key = AmbientLoop.key(hub.snapshot(now=100))
+    for sequence in range(1, 21):
+        camera.ingest(packet(sequence, ["furrowed_brow"]), now=100 + sequence)
+        assert AmbientLoop.key(hub.snapshot(now=100 + sequence)) == key
+    camera.ingest(packet(21), now=121)
+    assert AmbientLoop.key(hub.snapshot(now=121)) == key
+    camera.ingest(packet(22), now=124)
+    assert AmbientLoop.key(hub.snapshot(now=124)) is None
+
+
+@pytest.fixture
+def ambient_runtime(tmp_path, monkeypatch):
+    now = [100.0]
+    monkeypatch.setattr("ambient.monotonic", lambda: now[0])
+    monkeypatch.setattr("app_runtime.monotonic", lambda: now[0])
+    memory = MemoryStore(tmp_path / "memory.db")
+    memory.put(kind="task", title="Prepare pitch")
+    runtime = AppRuntime(memory)
+    runtime.status, runtime.connected_at = "connected", 90
+    runtime.session = SimpleNamespace(model=SimpleNamespace(send_proactive_response=AsyncMock(return_value=True)))
+    runtime.context = lambda: TurnContext(user_turn_generation=runtime.activity.user_turn_generation)
+    snapshot = runtime.hub.snapshot
+    monkeypatch.setattr(runtime.hub, "snapshot", lambda **kwargs: snapshot(now=now[0], **kwargs))
+    runtime.camera.ingest(packet(cues=["furrowed_brow"]), now=100)
+    yield runtime, now
+    memory.close()
+
+
+async def test_transient_decision_failure_retries_same_cue_after_backoff(ambient_runtime):
+    runtime, now = ambient_runtime
+    classifier = SimpleNamespace(decide=AsyncMock(side_effect=[TimeoutError(), "offer_task_help"]))
+    loop = AmbientLoop(runtime, classifier)
+    await loop.step()
+    assert runtime.suggestion is None and loop.last_key is None
+    assert runtime.proactive["reason"] == "decision_unavailable"
+    await loop.step()
+    assert classifier.decide.await_count == 1
+    now[0] += 1
+    await loop.step()
+    assert classifier.decide.await_count == 2
+    assert runtime.suggestion is not None
+
+
+async def test_busy_voice_retries_cached_decision_without_consuming_offer_or_cooldown(ambient_runtime):
+    runtime, _ = ambient_runtime
+    classifier = SimpleNamespace(decide=AsyncMock(return_value="offer_task_help"))
+    runtime.session.model.send_proactive_response.side_effect = [False, True]
+    loop = AmbientLoop(runtime, classifier)
+    await loop.step()
+    assert runtime.suggestion is None and loop.last_key is None
+    assert loop.last_offer == float("-inf")
+    assert runtime.proactive["reason"] == "voice_busy"
+    await loop.step()
+    classifier.decide.assert_awaited_once()
+    assert runtime.suggestion is not None
+    await loop.step()
+    assert runtime.session.model.send_proactive_response.await_count == 2
+
+
+@pytest.mark.parametrize("change", ["neutral", "face_lost", "user", "worker", "focus"])
+async def test_normal_offer_rechecks_context_at_socket_send(ambient_runtime, change):
+    runtime, _ = ambient_runtime
+    async def send(_, send_if):
+        if change == "neutral":
+            runtime.camera.ingest(packet(1, ["neutral"]), now=100.1)
+        elif change == "face_lost":
+            runtime.camera.ingest(packet(1, usable=False), now=100.1)
+        elif change == "user":
+            runtime.activity.confirmed_speech()
+        elif change == "worker":
+            runtime.context = lambda: TurnContext(computer_generation=1)
+        else:
+            runtime.focus = True
+        return send_if()
+    runtime.session.model.send_proactive_response.side_effect = send
+    loop = AmbientLoop(runtime, SimpleNamespace(decide=AsyncMock(return_value="offer_task_help")))
+    await loop.step()
+    assert runtime.suggestion is None and loop.last_offer == float("-inf")
+
+
+async def test_a_declined_decision_is_not_repeated_for_every_frame(ambient_runtime):
+    runtime, now = ambient_runtime
+    classifier = SimpleNamespace(decide=AsyncMock(return_value="none"))
+    loop = AmbientLoop(runtime, classifier)
+    await loop.step()
+    for sequence in range(1, 7):
+        now[0] += 1
+        runtime.camera.ingest(packet(sequence, ["furrowed_brow"]), now=now[0])
+    await loop.step()
+    classifier.decide.assert_awaited_once()
+    assert runtime.suggestion is None
+
+
+@pytest.mark.parametrize("observe_screen,reason", [
+    (True, "screen_permission_missing"), (False, "screen_observation_off"),
+])
+async def test_runtime_preserves_permission_reason_and_safe_voice_error(ambient_runtime, monkeypatch, observe_screen, reason):
+    from main import RealtimeSessionError
+    runtime, _ = ambient_runtime
+    monkeypatch.setattr(runtime, "permissions", lambda: {"Accessibility": False, "Screen Recording": False})
+    monkeypatch.setattr("app_runtime.run_voice", AsyncMock(side_effect=RealtimeSessionError({
+        "code": "session_expired", "message": "private-provider-body",
+    })))
+    await runtime._run(observe_screen)
+    snapshot = runtime.snapshot()
+    assert snapshot["status"] == "error"
+    assert snapshot["observations"]["computer"] == {"status": "disabled", "reason": reason}
+    event = next(event for event in snapshot["events"] if event["type"] == "session_error")
+    assert event["code"] == "session_expired" and event["location"]
+    assert "private-provider-body" not in json.dumps(snapshot)
+
+
+def test_camera_gap_starts_a_new_episode_instead_of_resurrecting_an_old_one():
+    hub = ObservationHub()
+    camera = FastCamera(hub)
+    camera.ingest(packet(cues=["smiling"]), now=100)
+    old_key = AmbientLoop.key(hub.snapshot(now=100))
+    camera.ingest(packet(1, ["smiling"]), now=103)
+    assert AmbientLoop.key(hub.snapshot(now=103)) != old_key
 
 
 def test_missing_face_and_out_of_order_packet_do_not_restore_a_cue():
@@ -127,6 +253,8 @@ def test_local_api_requires_token_and_keeps_memory_across_restart(tmp_path):
         assert client.post('/api/memory', json={}).status_code == 403
         headers = {'X-Ambi-Token': boot['token']}
         assert boot['state']['observations']['computer']['status'] == 'disabled'
+        assert boot['state']['proactive'] == {'status': 'paused', 'reason': 'session_not_connected'}
+        assert client.get('/api/state', headers=headers).json()['proactive'] == boot['state']['proactive']
         assert client.post('/api/memory', headers=headers,
                            json={'kind': 'note', 'title': []}).status_code == 400
         assert client.post('/api/memory', headers={**headers, 'Origin': 'https://evil.invalid'}, json={}).status_code == 403
@@ -303,4 +431,6 @@ def test_websocket_requires_local_origin_and_token(tmp_path):
             with client.websocket_connect('/ws', subprotocols=['ambi', token], headers={'Origin': 'https://evil.invalid'}):
                 pass
         with client.websocket_connect('/ws', subprotocols=['ambi', token], headers={'Origin': 'http://127.0.0.1:8765'}) as ws:
-            assert ws.receive_json()['status'] == 'idle'
+            state = ws.receive_json()
+            assert state['status'] == 'idle'
+            assert state['proactive'] == {'status': 'paused', 'reason': 'session_not_connected'}

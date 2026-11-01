@@ -170,6 +170,10 @@ type AmbiState = {
   error: string | null;
   focus: boolean;
   microphone_enabled: boolean;
+  proactive: {
+    status: 'paused' | 'waiting' | 'evaluating' | 'offered' | 'error';
+    reason: string;
+  };
   camera: null | {
     usable: boolean; cues: CueName[]; scores: Partial<Record<CueName, number>>;
     inference_ms: number; detection_ms: number; received_at: number;
@@ -202,6 +206,18 @@ can remain visible across voice sessions and disappears on server restart. The
 snapshot exposes only the latest 12 runtime `events`; these are diagnostic, not
 a durable audit log. A `job` can also remain in a later snapshot after it ends.
 
+`proactive` explains why a detected cue has not led to speech. Its reason can
+identify session/focus/activity gates, warmup, cooldown, pending suggestions,
+missing fresh camera or task context, `voice_busy`, `retry_backoff`, or
+`already_offered` (Ellis allows one offer per category per session). Display
+unknown reasons defensively. It is diagnostic state, never action permission.
+Transitions also emit `proactive_status` events. Realtime failures expose an
+allowlisted provider code in `session_error`, plus error type and source location;
+provider error bodies are not exposed. A late spoken interruption may receive
+`response_cancel_not_active` after the reply has already finished. This is a
+nonfatal `realtime_warning`: the session remains connected for the next turn.
+Cancellation targets the interrupted response ID so it cannot stop a newer reply.
+
 **Time units matter:** `received_at`, `expires_at`, `started_at`, `events.at`,
 and the observation hub's `observed_at`/`expires_at`/`cue_at` are Python
 `time.monotonic()` seconds. They are process-local and must **not** be parsed as
@@ -216,7 +232,8 @@ Each source is `{status,reason,observed_at?,expires_at?,payload?}`. Status may b
 on source lifecycle. `pair` is `{aligned,skew_seconds,reason}`; `runtime` contains
 user/response/audio/computer activity flags and generation numbers. When
 `observations.camera.status === 'available'`, its payload includes
-`cues` (recent cues held for about four seconds), `current_cues` (this frame),
+`cues` (held while supported, then for four seconds after the last supporting
+frame), `current_cues` (this frame),
 `episode`, `cue_at`, and `interpretation`. These differ from `state.camera`,
 which is the latest raw packet. When `observations.computer.status ===
 'available'`, its tentative payload can include `visible_activity`, `surface`,
@@ -251,6 +268,10 @@ run only one active camera producer at a time. The test UI creates a UUID once
 per page load and increments `sequence` for each POST. Its cue filter requires
 three supporting frames in a continuous candidate, resets after frame gaps over
 500 ms or face loss, and requires longer holds for the five composite look cues.
+Sampling uses a bounded timer and only advancing video frames, so a frozen
+preview cannot manufacture supporting frames. Browsers may still throttle hidden
+tabs; stale frames are discarded. Camera uploads time out after 1.2 seconds and
+keep only the latest pending packet, including neutral or unusable transitions.
 Near-threshold dips up to 150 ms preserve pending evidence; neutral frames clear
 it immediately. `tired_look` includes sustained yawn-like opening with bilateral
 eye narrowing (700 ms), or a wider opening even with open eyes (1200 ms).
@@ -334,8 +355,13 @@ Python voice; call `POST /api/stop` before unmounting a session UI if the user
 intends to end it.
 
 The screen observer runs only when `observe_screen:true` and Screen Recording
-permission is available. It observes the primary display roughly every five
-seconds and publishes tentative, read-only summaries. Screenshots may be sent
+permission is available. It samples the primary display roughly every two
+seconds (model latency can lengthen that interval) and publishes tentative,
+read-only summaries. Identical new captures refresh observation freshness without
+a model request; reanalysis still occurs at the configured TTL. Changed screens
+clear old context while analysis is pending. Missing permission is reported as
+`screen_permission_missing`, separately from `screen_observation_off`.
+Screenshots may be sent
 to OpenAI but are not exposed by these API routes or saved in the cue journal.
 The desktop worker needs both Accessibility and Screen Recording permission.
 When unavailable, voice and memory still work, but computer actions do not.
@@ -346,6 +372,12 @@ unsolicited offers. A `suggestion` is a proposal, not permission for an action;
 the user must explicitly accept it or make a direct request. `stop-task` cancels
 future worker actions but cannot undo actions already performed. A successful
 computer report can be saved as `kind:"result"` memory.
+
+Normal-mode Decisions failures retry with bounded backoff while context remains
+fresh. A busy voice transport retains the decision for retry; only a committed
+voice send consumes the offer/cooldown or publishes its card. Held camera cues
+keep one episode while packets remain fresh; a two-second packet gap starts a
+new episode. This prevents greeting audio from silently consuming a held cue.
 
 Voice delivery adapts in normal and Ellis demo sessions at each actual response
 send boundary, after any queue wait. Fresh current `smiling` selects playful,

@@ -56,6 +56,12 @@ class SpeechConfirmedRealtimeModel(OpenAIRealtimeWebSocketModel):
             return False
         return await super()._send_raw_message_if(self._with_voice_style(event), send_if)
 
+    async def _cancel_response(self, *, response_id=None):
+        # Target the interrupted turn. A delayed cancellation must never cancel
+        # a newer reply that started after the original response finished.
+        response_id = response_id or self._response_create_sequencer.ongoing_response_id
+        await super()._cancel_response(response_id=response_id)
+
     async def _emit_event(self, event):
         if event.type == "audio":
             style = self._voice_response_styles.get(event.response_id, STYLES["balanced"])

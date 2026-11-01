@@ -75,6 +75,8 @@ def create_app(*, db_path=None, cue_db_path=None, seed=True, runtime_factory=App
         try:
             if request.method == "GET":
                 if action == "state":
+                    # Same snapshot as bootstrap and /ws, including the
+                    # proactive status/reason used to explain silent cues.
                     return JSONResponse(runtime.snapshot())
                 if action == "cues":
                     limit = int(request.query_params.get("limit", "50"))

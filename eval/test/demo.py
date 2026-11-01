@@ -94,8 +94,7 @@ class DemoProfile:
         # A fresh current cue is required: no queued offer after a neutral frame,
         # lost face, camera-off, or expired observation. Order gives tired priority.
         cues = set(payload.get("current_cues", ()))
-        # FastCamera's brief episode expires after four seconds even if fresh
-        # frames still show the same cue. A held cue can outlast greeting audio.
+        # Also support independent producers without an episode identifier.
         episode = payload.get("episode") or ("current", tuple(sorted(cues)))
         for rule in self.config.cue_mappings:
             if rule.id not in offered and cues.intersection(rule.cues):
@@ -117,16 +116,30 @@ class DemoLoop:
     async def step(self):
         r, config = self.runtime, self.profile.config
         now = monotonic()
-        if (not r.quiet() or not r.session or now - r.connected_at < config.warmup_seconds
-                or now - self.last_offer < config.cooldown_seconds):
+        if reason := r.quiet_reason():
+            r.set_proactive("paused", reason)
+            return
+        if not r.session:
+            r.set_proactive("paused", "session_not_connected")
+            return
+        if now - r.connected_at < config.warmup_seconds:
+            r.set_proactive("waiting", "session_warmup")
+            return
+        if now - self.last_offer < config.cooldown_seconds:
+            r.set_proactive("waiting", "cooldown")
             return
         if r.suggestion:
             if now < r.suggestion["expires_at"]:
+                r.set_proactive("offered", "pending_suggestion")
                 return
             r.suggestion = None
         snapshot = r.hub.snapshot(context=r.context())
         candidate = self.profile.candidate(snapshot, self.offered)
         if candidate is None:
+            reason = "already_offered" if self.profile.candidate(snapshot, set()) else "no_matching_cue"
+            if snapshot["camera"]["status"] != "available":
+                reason = "no_fresh_camera"
+            r.set_proactive("waiting", reason)
             return
         rule, episode = candidate
         action = rule.actions[0]  # Alternatives stay in the voice context for direct requests.
@@ -145,6 +158,7 @@ class DemoLoop:
                     and turn == r.activity.user_turn_generation and generation == r.context().computer_generation
                     and current is not None and (current[0].id, current[1]) == (rule.id, episode))
 
+        r.set_proactive("evaluating", "preparing_offer")
         async with asyncio.timeout(3):
             sent = await r.session.model.send_context_response(
                 json.dumps({"suggestion": suggestion, "observations": snapshot,
@@ -152,6 +166,7 @@ class DemoLoop:
                 still_relevant, instructions=DEMO_VOICE_INSTRUCTIONS, kind="demo_suggestion",
             )
         if not sent:
+            r.set_proactive("waiting", "voice_busy")
             return  # A busy transport can retry while the cue remains fresh.
         self.offered.add(rule.id)
         self.last_offer = monotonic()
@@ -163,6 +178,7 @@ class DemoLoop:
             r.suggestion = suggestion
             r.emit("suggestion", **suggestion)
         r.emit("demo_rule", profile="ellis", rule=rule.id, action_id=action.id)
+        r.set_proactive("offered", "offer_sent")
 
     async def run(self):
         while True:
@@ -172,6 +188,7 @@ class DemoLoop:
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
+                self.runtime.set_proactive("error", "decision_unavailable")
                 self.runtime.emit("decision_unavailable", reason=type(exc).__name__)
                 await asyncio.sleep(1)
 

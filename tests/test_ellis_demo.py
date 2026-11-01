@@ -182,9 +182,22 @@ async def test_fresh_held_cue_can_offer_after_greeting_outlasts_brief_episode(de
     r = demo.runtime
     r.camera.ingest(packet(["smiling"]), now=94)
     r.camera.ingest(packet(["smiling"], 1), now=100)
-    assert r.hub.snapshot()["camera"]["payload"]["episode"] is None
+    assert r.hub.snapshot()["camera"]["payload"]["episode"] is not None
     await demo.loop.step()
     assert r.suggestion["title"] == "A little music?"
+
+
+async def test_demo_explains_why_a_visible_cue_does_not_repeat(demo):
+    r = demo.runtime
+    r.camera.ingest(packet(["smiling"]), now=100)
+    await demo.loop.step()
+    r.suggestion = None
+    demo.now[0] = 107
+    r.camera.ingest(packet(["smiling"], 1), now=107)
+    await demo.loop.step()
+    assert r.snapshot()["proactive"] == {"status": "waiting", "reason": "already_offered"}
+    r.focus = True
+    assert r.snapshot()["proactive"] == {"status": "paused", "reason": "focus_mode"}
 
 
 class Socket:

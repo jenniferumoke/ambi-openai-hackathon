@@ -382,7 +382,28 @@ def enter_voice_audio(stack, audio, *, hands_free, runtime=None):
         return fallback
 
 
-async def handle_realtime_events(session, audio, activity=None, speech_gate=None, on_event=None):
+class RealtimeSessionError(RuntimeError):
+    """Expose only allowlisted provider codes, never the private error body."""
+
+    HINTS = {
+        "rate_limit_exceeded": "API rate limit reached. Wait briefly before restarting the session.",
+        "insufficient_quota": "API quota unavailable. Check billing and project limits before restarting.",
+        "invalid_api_key": "API authentication failed. Check the local API key and restart the server.",
+        "model_not_found": "Voice model unavailable. Check model and API project access.",
+        "server_error": "The voice service failed. Start a new session to reconnect.",
+        "session_expired": "The voice session expired. Start a new session to reconnect.",
+        "conversation_already_has_active_response": "Voice responses overlapped. Start a new session to reconnect.",
+        "invalid_value": "The voice service rejected a setting or event. Check the voice configuration.",
+        "invalid_request_error": "The voice service rejected a request. Check the voice configuration.",
+    }
+
+    def __init__(self, error):
+        code = error.get("code") if isinstance(error, dict) else getattr(error, "code", None)
+        self.code = code if isinstance(code, str) and code in self.HINTS else "unknown_error"
+        super().__init__(self.HINTS.get(self.code, "The voice service reported an error. Start a new session to reconnect."))
+
+
+async def handle_realtime_events(session, audio, activity=None, speech_gate=None, on_event=None, log=None):
     """Play responses and discard audio belonging to interrupted items.
 
     Playback can outlast model generation; ``finish`` marks generation complete
@@ -414,7 +435,18 @@ async def handle_realtime_events(session, audio, activity=None, speech_gate=None
             elif event.data.type == "transcript_delta":
                 print(event.data.delta, end="", flush=True)
         elif event.type == "error":
-            raise RuntimeError(f"Realtime API error: {event.error}")
+            code = (event.error.get("code") if isinstance(event.error, dict)
+                    else getattr(event.error, "code", None))
+            if code == "response_cancel_not_active":
+                # The reply can finish on the server while a confirmed spoken
+                # interruption is in flight. Realtime keeps this session open;
+                # response.done still owns playback/sequencer completion.
+                message = "The reply had already finished; continuing the voice session."
+                if log is not None:
+                    log("realtime_warning", code=code, message=message)
+                print(f"Voice interruption: {message}", flush=True)
+                continue
+            raise RealtimeSessionError(event.error)
 
 
 async def run_voice(worker, settings, args, observation_settings=None, screen_settings=None, *, memory=None, runtime=None):
@@ -549,7 +581,8 @@ async def run_voice(worker, settings, args, observation_settings=None, screen_se
                     exit_task = tasks.create_task(exit_when_requested())
                     try:
                         await handle_realtime_events(session, audio, activity, speech_gate,
-                                                     on_event=runtime.on_voice_event if runtime else None)
+                                                     on_event=runtime.on_voice_event if runtime else None,
+                                                     log=runtime.emit if runtime else None)
                     finally:
                         sender.cancel()
                         if greeting:
