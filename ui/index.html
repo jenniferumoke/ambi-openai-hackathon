@@ -35,7 +35,7 @@
         <div class="suggestion hidden" id="suggestion" aria-live="polite"></div>
         <div class="session-controls">
           <div class="setup-warning hidden" id="setup-warning" role="status"></div>
-          <button class="button primary" id="start"><span class="play-icon">▶</span> Start session</button>
+          <div class="voice-controls"><button class="button primary" id="start"><span class="play-icon">▶</span> Start session</button><button class="button small" id="microphone" aria-pressed="true" aria-label="Microphone enabled">Mic on</button></div>
           <div class="session-options" id="session-options"><label><input type="checkbox" id="observe-screen" checked /> Include screen context</label><span>Mac microphone & speakers</span></div>
           <form id="message-form" class="message-form"><label for="message" class="sr-only">Message Ambi</label><input id="message" placeholder="Or leave a thought here…" autocomplete="off" maxlength="4000" disabled /><button id="send" aria-label="Send message" disabled>↑</button></form>
           <p class="control-hint" id="control-hint">Start a session and Ambi will speak first.</p>
@@ -48,8 +48,18 @@
           <div class="camera-footer"><div><strong>Camera cues</strong><p id="camera-status">Camera is off</p></div><button class="toggle" id="camera-toggle" role="switch" aria-checked="false" aria-label="Enable local camera detection"><span></span></button></div>
         </div>
         <div class="cue-heading"><span class="eyebrow">VISIBLE CUES</span><span id="camera-latency">—</span></div>
-        <div class="cue-list" id="cue-list"><div class="cue"><span>Smile</span><div class="meter"><i id="meter-smiling"></i></div><span id="score-smiling">—</span></div><div class="cue"><span>Brow furrow</span><div class="meter"><i id="meter-furrowed_brow"></i></div><span id="score-furrowed_brow">—</span></div><div class="cue"><span>Frown</span><div class="meter"><i id="meter-frowning"></i></div><span id="score-frowning">—</span></div></div>
-        <p class="cue-explainer">Facial movement is a hint, not a feeling. Camera images stay on your device.</p>
+        <div class="cue-list" id="cue-list">
+          <div class="cue"><span>Smile</span><div class="meter"><i id="meter-smiling"></i></div><span id="score-smiling">—</span></div>
+          <div class="cue"><span>Brow furrow</span><div class="meter"><i id="meter-furrowed_brow"></i></div><span id="score-furrowed_brow">—</span></div>
+          <div class="cue"><span>Frown</span><div class="meter"><i id="meter-frowning"></i></div><span id="score-frowning">—</span></div>
+          <span class="cue-subheading">LOOK PATTERNS</span>
+          <div class="cue" title="Uneven eyebrow lift with narrowed eyes"><span>Confused look</span><div class="meter"><i id="meter-confused_look"></i></div><span id="score-confused_look">—</span></div>
+          <div class="cue" title="Sustained brow lowering with narrowed eyes"><span>Concentrating</span><div class="meter"><i id="meter-concentrating_look"></i></div><span id="score-concentrating_look">—</span></div>
+          <div class="cue" title="Lowered brows with a pressed mouth or nose wrinkle"><span>Irritated look</span><div class="meter"><i id="meter-irritated_look"></i></div><span id="score-irritated_look">—</span></div>
+          <div class="cue" title="Yawn-like mouth opening with narrowed or closed eyes"><span>Tired look</span><div class="meter"><i id="meter-tired_look"></i></div><span id="score-tired_look">—</span></div>
+          <div class="cue" title="Both eyes closed for a sustained moment"><span>Sleepy look</span><div class="meter"><i id="meter-sleepy_look"></i></div><span id="score-sleepy_look">—</span></div>
+        </div>
+        <p class="cue-explainer">These labels describe visible patterns, not how you feel or how alert you are. Bars show signal strength, not confidence. Camera cues are computed locally; screen context can include the camera preview.</p>
         <div class="activity-card"><div class="section-heading"><span class="eyebrow">WORKING ALONGSIDE YOU</span></div><div id="activity-content"><span class="activity-icon">↗</span><h3>A hand when it helps.</h3><p>Ambi can notice a task, offer help, and take the next step with you.</p></div><button class="button danger hidden" id="stop-task">Stop computer task</button></div>
         <div class="status-footer"><span id="screen-status"><i></i> Screen context off</span><span id="memory-status">Local memory ready</span></div>
       </aside>
