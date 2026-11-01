@@ -15,6 +15,7 @@ const link = (label, url, cls = "secondary source-link") => {
 export function createProfileUI({ api, action, notice }) {
   let sessions = [], app = {}, selectedId = null;
   let signature = "", catalogSignature = "";
+  let opening = false;
   const button = (text, fn, cls = "secondary") => {
     const node = el("button", text, cls);
     node.type = "button";
@@ -62,6 +63,7 @@ export function createProfileUI({ api, action, notice }) {
       const selected = card.dataset.profile === item?.profile.id;
       card.classList.toggle("selected", selected);
       card.setAttribute("aria-pressed", String(selected));
+      card.disabled = opening;
     }
     if (!item) {
       target.replaceChildren(el("p", "Choose a person above to get started.", "empty"));
@@ -76,14 +78,29 @@ export function createProfileUI({ api, action, notice }) {
     const launchActions = el("div", null, "profile-actions");
     launchActions.append(link("Open example", `/profile-view/${item.id}/${scenario.source.split("/").map(encodeURIComponent).join("/")}`));
     if (profile.packs.includes("code")) launchActions.append(button("Open in editor", () => api("profile-editor", { id: item.id })));
-    if (running) launchActions.append(link("Open AMBI", "http://127.0.0.1:8765", "primary source-link"));
-    else launchActions.append(button(app.running ? `Switch AMBI to ${firstName}` : "Launch AMBI", async () => {
-      if (app.running) await api("profile-stop");
-      await api("profile-launch", { id: item.id });
-      notice("AMBI is ready. Click Open AMBI below, then Start session.", false);
-    }, "primary"));
+    const open = button(opening ? "Opening AMBI…" : "Open AMBI", async () => {
+      if (opening) return;
+      // Open during the click so browsers do not block the tab after startup.
+      const tab = window.open("about:blank", "_blank");
+      if (tab) tab.opener = null;
+      opening = true;
+      render();
+      try {
+        if (app.running && app.session_id !== item.id) await api("profile-stop");
+        await api("profile-launch", { id: item.id });
+        if (tab && !tab.closed) tab.location.href = "http://127.0.0.1:8765";
+        else window.location.assign("http://127.0.0.1:8765");
+      } catch (error) {
+        if (tab && !tab.closed) tab.close();
+        throw error;
+      } finally {
+        opening = false;
+        render();
+      }
+    }, "primary");
+    open.disabled = opening;
+    launchActions.append(open);
     launch.append(launchActions);
-    if (app.running && !running) launch.append(el("p", "Switching ends the current demo session.", "subtle"));
 
     const context = el("details", null, "demo-details");
     context.append(el("summary", `About ${firstName} and the demo files`));

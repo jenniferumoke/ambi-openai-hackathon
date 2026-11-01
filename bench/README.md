@@ -18,7 +18,7 @@ Open **http://127.0.0.1:8766**. The dashboard uses the existing Python dependenc
 
 1. Choose Rowan, Ellis or Nora. The card resumes their latest demo, or prepares separate memory and files on first use.
 2. Click **Open example**. Each person has one default example: Rowan’s overdue invoice, Ellis’s failing test log, or Nora’s hotel email. Ellis also has **Open in editor**, using your installed `code` command (VS Code or Cursor).
-3. Click **Launch AMBI**, then **Open AMBI**. If another demo is running, **Switch AMBI** ends it and launches the selected person's memory. An unrelated app on port 8765 is never replaced.
+3. Click **Open AMBI**. It opens the app with the selected person's memory, automatically replacing a different lab demo if necessary. The selected profile is held while it opens. An unrelated app on port 8765 is never replaced.
 4. In AMBI, click **Start session** and let the greeting finish. Return to the example window, keep the demo instructions out of AMBI's view, and wait about a minute without asking for help.
 5. Watch the actual response in AMBI. No situation picker, review form, grading, capture or export is required. Other source files remain available under the profile details.
 
