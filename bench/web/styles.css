@@ -409,11 +409,6 @@ tbody tr:hover {
 .demo-step { padding: 20px 0; border-top: 1px solid var(--line); }
 .demo-step h2 { font-size: 16px; margin-bottom: 12px; }
 .demo-step > p, .demo-details > p { max-width: 75ch; font-size: 13px; line-height: 1.7; }
-.scenario-choices { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-.scenario-choices [aria-pressed="true"] { background: #edf0f2; border-color: #70777e; }
-.demo-expectation { background: #f5f7f6; padding: 16px; margin: 14px 0; max-width: 75ch; }
-.demo-expectation strong { font-size: 12px; }
-.demo-expectation p { font-size: 13px; line-height: 1.6; margin-top: 6px; }
 .demo-details { border-top: 1px solid var(--line); padding: 18px 0; }
 .demo-details summary { cursor: pointer; font-size: 12px; color: var(--muted); }
 .demo-details > p, .demo-details > h3 { margin-top: 18px; }

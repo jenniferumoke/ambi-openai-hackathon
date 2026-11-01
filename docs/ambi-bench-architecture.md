@@ -1,6 +1,6 @@
 # AMBI-Bench: simple demo
 
-The demo prepares a fictional person's desktop context. Visitors choose a person and situation, open AMBI, and watch whether it offers a useful next step or correctly stays quiet. There is no assessment form in the interface.
+The demo prepares a fictional person's desktop context. Visitors choose a person, open their default example and AMBI, and watch whether it offers a useful next step or correctly stays quiet. There is no assessment form in the interface.
 
 ```mermaid
 flowchart LR

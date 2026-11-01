@@ -1,6 +1,6 @@
 # AMBI-Bench: hackathon demo
 
-Show AMBI's proactive behavior in three steps: **choose a person and situation → open AMBI → watch what it notices**. The dashboard prepares realistic context. The actual AMBI app provides the live response; there is no assessment form or score to complete.
+Show AMBI's proactive behavior: **choose a person → open their example and AMBI**. The dashboard prepares realistic context. The actual AMBI app provides the live response; there is no assessment form or score to complete.
 
 ## Start locally
 
@@ -17,10 +17,10 @@ Open **http://127.0.0.1:8766**. The dashboard uses the existing Python dependenc
 ## The core journey
 
 1. Choose Rowan, Ellis or Nora. The card resumes their latest demo, or prepares separate memory and files on first use.
-2. Pick a situation and click **Open example**. Ellis also has **Open in editor**, using your installed `code` command (VS Code or Cursor).
+2. Click **Open example**. Each person has one default example: Rowan’s overdue invoice, Ellis’s failing test log, or Nora’s hotel email. Ellis also has **Open in editor**, using your installed `code` command (VS Code or Cursor).
 3. Click **Launch AMBI**, then **Open AMBI**. If another demo is running, **Switch AMBI** ends it and launches the selected person's memory. An unrelated app on port 8765 is never replaced.
 4. In AMBI, click **Start session** and let the greeting finish. Return to the example window, keep the demo instructions out of AMBI's view, and wait about a minute without asking for help.
-5. Watch the response in AMBI. The **What to look for** text describes the expected behavior, not an actual result. No review form, grading, capture or export is required.
+5. Watch the actual response in AMBI. No situation picker, review form, grading, capture or export is required. Other source files remain available under the profile details.
 
 History, memory, all files, reset and stop controls are tucked under **About … and the demo files**. Reset creates fresh data and retains previous sessions locally. Demo memory lives under ignored `data/bench/profiles/<session>/`; normal user memory is not replaced.
 
