@@ -14,6 +14,8 @@ its markup, CSS, and local component state.
 - `ambient.py` defines `CuePacket`, live camera state, and proactive Decisions
   gating. `cue_store.py` defines the durable cue journal.
 - `memory_store.py` defines durable user memory and its validation.
+- `eval/test/ellis.json` and `eval/test/demo.py` define the opt-in fictional Ellis
+  demo profile, isolated workspace, and explicit cue-to-offer catalog.
 - `observation_hub.py` defines the live camera and computer observation shape;
   `screen_observer.py` defines the tentative computer observation payload.
 - `ui/src/camera-worker.js` and `ui/src/cue-filter.js` implement the current
@@ -242,8 +244,17 @@ the server returns `accepted:false` for `sequence` values at or below the last
 accepted value for the **current** stream. A new stream replaces live camera state immediately, so
 run only one active camera producer at a time. The test UI creates a UUID once
 per page load and increments `sequence` for each POST. Its cue filter requires
-three supporting frames, resets after long frame gaps or face loss, and requires
-longer holds for the five composite look cues.
+three supporting frames in a continuous candidate, resets after frame gaps over
+500 ms or face loss, and requires longer holds for the five composite look cues.
+Near-threshold dips up to 150 ms preserve pending evidence; neutral frames clear
+it immediately. `tired_look` includes sustained yawn-like opening with bilateral
+eye narrowing (700 ms), or a wider opening even with open eyes (1200 ms).
+These paths use separate timers. Smiling and wide-eye patterns suppress yawn
+classification; yawn-like geometry suppresses competing brow/tension cues.
+Moderate bilateral brow lowering supports `furrowed_brow`; `confused_look` uses
+corroborated brow asymmetry or combined inner-brow lift and lowering. A plain
+furrow alone does not imply a composite look. See the detector rule table in
+`docs/camera-cues-api.md` for the heuristic thresholds and validation limits.
 
 `POST /api/camera` returns `accepted` for a fresh packet and `stored` only when
 the usable flag or cue set changed; `event_id` is an integer or `null`.
@@ -312,12 +323,39 @@ to OpenAI but are not exposed by these API routes or saved in the cue journal.
 The desktop worker needs both Accessibility and Screen Recording permission.
 When unavailable, voice and memory still work, but computer actions do not.
 
-Proactive offers require a connected, quiet session, relevant fresh context,
+Proactive offers in normal mode require a connected, quiet session, relevant fresh context,
 and the runtime gates (including a 45-second cooldown). `focus:true` suppresses
 unsolicited offers. A `suggestion` is a proposal, not permission for an action;
 the user must explicitly accept it or make a direct request. `stop-task` cancels
 future worker actions but cannot undo actions already performed. A successful
 computer report can be saved as `kind:"result"` memory.
+
+### Explicit Ellis demo mode
+
+`./scripts/start.sh --demo ellis` (or `server.py --demo ellis --open`) creates a
+fresh ignored `data/demo/ellis/<run-id>/` with Ellis memory, cue history, and an
+editable PairMatch copy. It preloads the full fictional profile and action
+catalog into voice system context and automatically starts voice; use
+`--no-autostart` to retain the Start session button flow. The normal launcher
+does not load this profile. `observations.mode` is `ellis_demo`; HTTP/WS shapes,
+authentication, and cue schema version remain unchanged.
+
+Only this explicit mode replaces Decisions classification with deterministic
+profile rules. A smile offers Happy in Brave; tired/sleepy look cues offer
+Dark Mode plus Night Shift; brow/confused/frown/tension cues offer PM-17 help
+grounded in the saved task. The catalog also includes confirmed local mood
+notes and ticket planning. These are possible offers, never standing permission
+or proof of internal state. There is a five-second startup wait, six-second
+cooldown, twelve-second suggestion expiry, and at most one offer per category
+per voice session. A current usable cue is required at the voice-send boundary;
+focus, user/response/audio/computer activity, and a pending suggestion suppress
+new offers. Normal mode retains the display-only look cues and 45-second cooldown.
+
+Opening and proactive turns disable tools. The usual `accept` route or an
+explicit spoken/typed agreement authorizes only the offered task. Code
+inspection requires separate approval before editing; ticket planning requires
+exact booking/price confirmation before purchase. See `eval/test/README.md` for
+the minute script and `tests/test_ellis_demo.py` for offline coverage.
 
 If macOS voice processing fails to initialize on an audio route, the backend
 falls back to compatible audio. The fallback keeps voice and typed turns but

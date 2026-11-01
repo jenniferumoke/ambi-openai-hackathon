@@ -143,6 +143,38 @@ def test_camera_payload_validation_and_focus(tmp_path):
         assert client.get('/api/state', headers=headers).json()['camera'] is None
 
 
+def test_ellis_demo_uses_existing_cue_and_accept_contract_without_automatic_actions(tmp_path):
+    from eval.test.demo import DemoLoop, create_demo_app
+
+    app = create_demo_app(root=tmp_path / "demo", auto_start=False)
+    with TestClient(app) as client:
+        r = app.state.runtime
+        r.status, r.connected_at = "connected", monotonic() - 10
+        r.session = SimpleNamespace(model=SimpleNamespace(send_context_response=AsyncMock(return_value=True)),
+                                    send_message=AsyncMock(), interrupt=AsyncMock())
+        r.audio = SimpleNamespace(clear=lambda: None)
+        headers = {'X-Ambi-Token': client.get('/api/bootstrap').json()['token']}
+        loop = DemoLoop(r, r.demo_profile)
+        assert client.post('/api/camera', headers=headers, json=packet(cues=['smiling']).model_dump()).status_code == 200
+        client.portal.call(loop.step)
+        suggestion = client.get('/api/state', headers=headers).json()['suggestion']
+        assert suggestion['title'] == 'A little music?'
+        r.session.send_message.assert_not_awaited()
+        assert client.post('/api/accept', headers=headers, json={'id': 'wrong'}).status_code == 400
+        assert client.post('/api/accept', headers=headers, json={'id': suggestion['id']}).status_code == 200
+        r.session.send_message.assert_awaited_once_with(suggestion['task'])
+        assert 'Brave' in suggestion['task'] and 'Happy' in suggestion['task']
+        assert client.get('/api/state', headers=headers).json()['suggestion'] is None
+        assert client.post('/api/accept', headers=headers, json={'id': suggestion['id']}).status_code == 400
+        assert client.get('/api/cues', headers=headers).json()['schema_version'] == 1
+        r.suggestion = {**suggestion, 'expires_at': monotonic() - 1}
+        assert client.post('/api/accept', headers=headers, json={'id': suggestion['id']}).status_code == 400
+        r.suggestion = {**suggestion, 'expires_at': monotonic() + 10}
+        assert client.post('/api/dismiss', headers=headers, json={'id': suggestion['id']}).status_code == 200
+        assert r.suggestion is None
+        assert r.session.send_message.await_count == 1
+
+
 def test_camera_cue_history_is_persisted_and_current_state_stays_fresh(tmp_path):
     path = tmp_path / 'db'
     cue_path = tmp_path / 'cues.sqlite3'
