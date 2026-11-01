@@ -14,9 +14,10 @@
     <header class="app-header">
       <a class="brand" href="/">AMBI-Bench</a>
       <nav aria-label="Main">
-        <button class="nav-item selected" data-tab="runs">Results</button
-        ><button class="nav-item" data-tab="workspaces">Workspaces</button
-        ><button class="nav-item" data-tab="architecture">Methodology</button>
+        <button class="nav-item selected" data-tab="profiles">Profiles</button>
+        <button class="nav-item" data-tab="runs">Developer checks</button>
+        <button class="nav-item" data-tab="workspaces">Artifact checks</button>
+        <button class="nav-item" data-tab="architecture">Methodology</button>
       </nav>
       <span id="connection" class="connection">Connecting</span>
     </header>
@@ -27,7 +28,26 @@
           Team code changed. Restart this dashboard before running a new
           benchmark.
         </div>
-        <section id="runs-view" class="view">
+        <section id="profiles-view" class="view">
+          <div class="page-heading">
+            <div>
+              <h1>Profile lab</h1>
+              <p>
+                Load a demo user, open their sources, and see what AMBI
+                suggests.
+              </p>
+            </div>
+            <span class="tag">Local desktop</span>
+          </div>
+          <div id="profile-catalog" class="profile-catalog"></div>
+          <div id="profile-session"></div>
+          <p class="method-note">
+            All profiles and sources are fictional. Live AMBI needs the team's
+            API configuration. VNC can use the same profile packs once its
+            environment is ready.
+          </p>
+        </section>
+        <section id="runs-view" class="view" hidden>
           <div class="page-heading">
             <div>
               <h1>Evaluation results</h1>
@@ -228,68 +248,70 @@
         <section id="architecture-view" class="view" hidden>
           <div class="page-heading">
             <div>
-              <h1>Evaluation methodology</h1>
+              <h1>How the profile lab works</h1>
               <p>
-                Decision replay and workspace verification measure different
-                parts of AMBI.
+                A prepared person, a realistic work context, and a short review
+                of AMBI’s behavior.
               </p>
             </div>
           </div>
-          <div class="architecture">
-            <section>
-              <span class="eyebrow">DECISION REPLAY</span>
-              <div class="flow-node">
-                Labelled scenario <small>Task evidence + cues + timing</small>
-              </div>
-              <span class="flow-arrow">↓</span>
-              <div class="flow-node">
-                Real AMBI component
-                <small>Policy · scheduler · speech · cue state</small>
-              </div>
-              <span class="flow-arrow">↓</span>
-              <div class="flow-node">
-                Expected vs observed
-                <small>Help, defer, ignore · exact grading</small>
-              </div>
-            </section>
-            <section>
-              <span class="eyebrow">WORKSPACE LAB</span>
-              <div class="flow-node">
-                Fictional source folder
-                <small>Bills · notes · broken code</small>
-              </div>
-              <span class="flow-arrow">↓</span>
-              <div class="flow-node">
-                Actual AMBI app
-                <small>User starts the task in the generated workspace</small>
-              </div>
-              <span class="flow-arrow">↓</span>
-              <div class="flow-node">
-                Saved artifact readback
-                <small>Facts · source integrity · executable vectors</small>
-              </div>
-            </section>
-          </div>
-          <div class="architecture-footer">
-            <strong>One evidence trail</strong
-            ><span
-              >Case ID · fixture version · source hash · commit · expected /
-              actual · timing</span
-            >
+          <div class="profile-method">
+            <div class="flow-node">
+              1. Load a profile<small
+                >Identity, preferences, two weeks of memory, and fresh source
+                files.</small
+              >
+            </div>
+            <span class="flow-arrow">↓</span>
+            <div class="flow-node">
+              2. Open the scenario<small
+                >An invoice, an unanswered email, a trip plan, or an editor with
+                failing tests.</small
+              >
+            </div>
+            <span class="flow-arrow">↓</span>
+            <div class="flow-node">
+              3. Observe the actual AMBI app<small
+                >Let the greeting finish. Show the source without asking for the
+                expected answer.</small
+              >
+            </div>
+            <span class="flow-arrow">↓</span>
+            <div class="flow-node">
+              4. Save a simple review<small
+                >Helpful, unwanted, correctly quiet, missed, or not tested.
+                Include what happened.</small
+              >
+            </div>
           </div>
           <div class="boundaries">
-            <h2>What the first version does not establish</h2>
+            <h2>Clear boundaries</h2>
             <p>
-              Human emotional state, camera recognition accuracy, speaker
-              identity, general coding ability or absence of external side
-              effects. Live classifier quality requires a real model run;
-              scripted scheduler tests remain labelled offline.
+              Each profile gets its own local memory database. Source documents
+              and messages are fictional. Captures exclude the greeting and raw
+              user transcript; a user turn is flagged so a prompted response is
+              not mistaken for proactivity. Camera cues are optional hints, not
+              mood labels.
+            </p>
+            <p>
+              The VNC environment is still being prepared. For now, use this
+              machine. The same profile manifests and source packs can be loaded
+              on the test machine once AMBI works there.
+            </p>
+          </div>
+          <div class="boundaries">
+            <h2>Optional developer tools</h2>
+            <p>
+              Developer checks exercise AMBI’s policy, scheduler and input
+              gates. Artifact checks verify saved task outputs. These remain
+              available for debugging and are not required to run a profile
+              scenario.
             </p>
           </div>
         </section>
       </main>
       <footer class="app-footer">
-        <span>AMBI-Bench <b>0.1</b></span
+        <span>AMBI-Bench <b>0.2</b></span
         ><span>Synthetic fixtures · local execution</span
         ><span id="footer-source">Local evaluation</span>
       </footer>

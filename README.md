@@ -170,11 +170,12 @@ Run the separate local evaluation dashboard:
 uv run python -m bench --serve
 ```
 
-Open <http://127.0.0.1:8766> for live offline runs, inspectable failures, baseline
-comparisons and curated workspaces for bills, meeting notes and a coding task.
-The benchmark does not start sensors or desktop actions. Live classifier checks
-require the team's API configuration. See [benchmark setup and methodology](bench/README.md)
-for the full workflow, limitations and a short demo script.
+Open <http://127.0.0.1:8766> to load fictional user profiles with two weeks of
+activity, isolated demo memory, and realistic invoices, emails or coding sessions.
+Launch AMBI with a profile, observe its proactive suggestion, and save a simple
+review. Starting sensors remains explicit in AMBI. Live sessions need the team's
+API configuration. See [profile-lab setup](bench/README.md) for the workflow,
+local/VNC boundaries and demo instructions. Component checks remain secondary.
 
 ## Credits and provenance
 

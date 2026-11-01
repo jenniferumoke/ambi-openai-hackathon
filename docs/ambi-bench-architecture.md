@@ -1,87 +1,48 @@
-# AMBI-Bench v0.1
+# AMBI-Bench: simple profile lab
 
-Decision: measure whether AMBI offers relevant help at the right moment, while preserving silence, freshness and user control. Build against the team's implementation, not a replacement agent.
-
-Branch: `ambi-bench`. Initial integration base: `f5f38bb` on `origin/main`, 1 November 2026. The three-person team's application remains owned by its existing developers. Benchmark files live in `bench/`, with tests in `tests/test_bench.py`; product behavior is not changed to improve a score.
-
-## Actual interfaces
-
-There are two current intervention paths. Keep their results separate:
-
-| Target | Interface | What we can establish |
-| --- | --- | --- |
-| Voice notification policy | `NotificationPolicy.evaluate(snapshot, TurnContext, now)` | Evidence, freshness, speech deferral, cooldown, deduplication |
-| UI intervention classifier | `AmbientClassifier.decide(snapshot, memory)` | Live Decisions choice quality over `none`, `offer_task_help`, `acknowledge_progress` |
-| UI scheduler | `AmbientLoop.run()` with an isolated runtime and scripted classifier | Focus/speech gates, stale-result rejection, cooldown; not live model quality |
-| Brief-cue state | `FastCamera.ingest(CuePacket, now)` and `ObservationHub.snapshot(now)` | Retention, expiry, missing-face and out-of-order handling; not camera recognition accuracy |
-| Speech input gate | `SpeechGate.rejection(transcription)` | Silence/noise rejection and valid short commands; not speaker identity or audio recognition accuracy |
-
-No benchmark adapter opens a camera, microphone, desktop controller or real voice session. Fixtures contain synthetic observations and fictional task context. Live mode sends these fixtures only to the existing classifier, using the team's configured model and authentication.
-
-## Flow
+The primary evaluation is a fictional person's desktop session, reviewed by a human. It asks: given this user's memory and current activity, did AMBI offer a useful next step or correctly stay quiet?
 
 ```mermaid
 flowchart LR
-    Cases[Versioned labelled scenarios] --> Runner[Bounded async runner]
-    Config[Target + split + adapter] --> Runner
-    Runner --> Offline[Real policy / cue / speech / scheduler code]
-    Runner --> Live[Existing AmbientClassifier]
-    Live --> Decisions[OpenAI Decisions API]
-    Offline --> Grade[Deterministic graders]
-    Decisions --> Grade
-    Grade --> Events[Per-case results]
-    Events --> Dashboard[Live dashboard]
-    Events --> Report[JSON report + provenance]
+    Profile[Choose fictional user] --> Load[Fresh folder + isolated AMBI memory]
+    Load --> Sources[Open invoice, inbox, or code session]
+    Sources --> App[Existing AMBI app]
+    App --> Observe[Observe after greeting]
+    Observe --> Review[Useful / unwanted / quiet / missed / untested]
+    Review --> Result[Local result + optional captured response]
 ```
 
-## Scenario contract
+## Profile contract
 
-Every case has a stable ID, suite, category, split, input, expected output, rationale and severity. Labels encode a product requirement; they are not generated from the output under test. Exact reasons are asserted only where the reason itself matters. A scenario can contain multiple ordered policy steps so cooldown and duplicate handling are evaluated within one episode.
+`bench/profiles/*.json` defines identity, role, a fixed snapshot date, preferences/tasks/completed results, a two-week activity timeline, source-pack folders, historical file timestamps and simple scenarios. Each scenario names a source, setup instructions, an offer/quiet expectation, a suggested behavior in plain English and a boundary. Reviewer expectations are not seeded as assistant answers.
 
-Seed a small synthetic set covering supported help, normal work, absent/ambiguous cues, explicit blockers, verified progress, speech/activity gates, stale observations, context switches, duplicate offers, cue expiry and noise. Keep a development/holdout split and report it. This is a hackathon regression benchmark, not an independently validated population benchmark. Have another teammate review the labels before using it for claims about real users. Do not infer emotional truth from facial geometry.
+Initial profiles: Rowan (event paperwork), Ellis (debugging), Nora (trip planning). Each includes a scenario where restraint is the correct behavior. All data is fictional.
 
-## Grading and reporting
+## Load and run
 
-- Exact decision accuracy and confusion matrix for intervention suites.
-- False-interruption rate: predicted interventions on cases labelled to stay quiet or defer, divided by all labelled quiet/defer opportunities. Show numerator and denominator.
-- Missed-help rate: no intervention on cases labelled for help/progress, divided by positive opportunities.
-- Precision and recall for intervening, with undefined denominators shown as unavailable.
-- Pass/fail/error counts and critical failures by suite. Errors are not correct silent decisions.
-- p50/p95 wall time separately by suite and execution mode. Offline policy timings do not imply model, camera-to-speech or end-to-end latency.
-- Baselines: always quiet and always intervene, evaluated only on compatible intervention cases. An always-quiet model must not look good by hiding missed help.
-- Store commit SHA, relevant source hashes, dataset hash, configuration, timestamps and whether the worktree was dirty. Never include environment values, credentials, raw provider error bodies or personal session data.
+`ProfileLab.prepare()` copies sources into `data/bench/profiles/<id>/desktop`, creates a separate SQLite database using the team's `MemoryStore`, and writes an identifiable demo-session marker. It does not read or replace the user's normal AMBI memory. `bench.profile_app` uses the existing `server.create_app(db_path=..., seed=False)` interface. No production agent, prompt, sensor or auth code is changed.
 
-Zero false interruptions in a small synthetic suite is a regression result, not a safety guarantee. Release gates should show critical failures independently of an overall pass percentage. No model-generated judge is needed for these bounded decisions. If adding a judge for spoken helpfulness later, calibrate it with human-labelled examples and report disagreement.
+The dashboard can launch one owned demo process on loopback port 8765. It refuses to displace another server. Starting voice/camera/screen collection remains an explicit operation in AMBI's UI. The test machine must have the same app dependencies, credentials and OS permissions as an ordinary AMBI session.
 
-## Live dashboard
+## Observe and review
 
-A separate loopback Starlette service on port 8766 serves a standalone HTML/CSS/JavaScript dashboard and authenticated WebSocket updates. It uses the project's existing stack and dependencies, avoiding edits to the product UI or audio runtime.
+Begin observation only when the app is connected and its greeting has finished. Record the current transcript/event IDs, then capture new assistant output and suggestions. Verify the process and memory marker before reading session data. A user turn is counted but its text is not stored in the profile report; it warns the reviewer against counting prompted responses as proactive.
 
-Primary journey: choose offline/live mode and split → run suite → watch cases complete → select a failure and inspect expected/actual/rationale → download the JSON evidence. Show connection and run status, cancellation, per-suite results, interruption errors, latency, case filters and reproducibility metadata. Runs are real; no fabricated results or animated preset scores. Live API mode is explicit, bounded, sequential and disabled without credentials.
+The review is intentionally simple and manual. Saved results carry the expected behavior, operator verdict/notes, optional captured evidence, profile/source fingerprints and commit. No synthetic or scripted response is presented as a live result. AMBI's event/transcript buffers are bounded, so one late capture is not a full-session recording.
 
-The initial dashboard observes benchmark execution. Attaching personal live AMBI sessions is a future opt-in trace adapter and requires a redacted event contract. It is not implied by this dashboard.
+## Source surfaces
 
-## Team integration
+- Actual PDFs for invoices, receipts and planning records, with readable source files for regeneration.
+- Local email exports shown as email messages in a fictional offline inbox-style reader.
+- A VS Code/Cursor workspace with a small bug, issue description, visible tests and a captured failing log.
+- Itinerary and saved travel options with explicit unbooked/completed states.
 
-Fetch team changes every ten minutes until 17:00 London time today. Merge `origin/main` only when `ambi-bench` is clean and no run is active. Preserve local edits; never auto-stash, rebase shared history or force-push. Inspect unmerged feature branches for interface changes, but do not merge them without coordination. Pin each run to its loaded source fingerprint and refuse a new run if imported product modules changed until the benchmark server restarts.
+Only manifest-listed source files are served in the preview routes. Databases, session JSON and arbitrary local paths are not source previews. Source copies and results remain ignored by Git. The repository holds only fictional originals, manifests and code.
 
-## Workspace artifact verification
+## VNC boundary
 
-The second journey is implemented in `WorkspaceLab`: prepare a fresh synthetic source folder → open it in VS Code → give the displayed task to the actual AMBI app → verify the saved artifact. Three scenarios cover unpaid bills, meeting notes with a superseded draft, and a broken coding exercise. Source hashes detect unintended edits. Reference answers and deliberate near misses test the graders separately from AMBI.
+The same repository and profiles can be loaded on the test machine; the operator then uses its desktop through VNC. No VNC transport has been supplied yet. AMBI's platform support and permissions must be checked on that host. Local validation currently uses macOS. This lab does not add background file watching, real inbox integration or mood inference to AMBI.
 
-This is operator-driven. A local artifact pass does not establish authorship, successful voice/camera integration or absence of external actions. Document checks are lexical and format-constrained; the code fixture runs eight vectors in a bounded subprocess and accepts a restricted Python subset. Neither is a general-purpose semantic judge or sandbox. See `bench/README.md` for the full runnable journey.
+## Secondary developer tooling
 
-The dashboard uses plain system typography, compact tabs/tables, stacked suite results, an expected/observed matrix, selectable case cells and a policy baseline comparison. Comparison requires matching dataset, source fingerprint and split; it never compares baseline-only aggregate scores against the entire product suite.
-
-## Scope after the first working benchmark
-
-Add acceptance/dismissal traces, memory-source grounding and camera-to-speech spans once the team exposes those trace contracts. Do not claim the first benchmark covers real camera accuracy, speaker separation, actual tool execution or end-to-end voice timing.
-
-## Sources and credit
-
-All initial cases are newly authored synthetic scenarios. AMBI's imported prototype and pre-existing tests belong to the team and retain their history. The benchmark uses existing production logic rather than copying it.
-
-- [OpenAI evaluation best practices](https://developers.openai.com/api/docs/guides/evaluation-best-practices)
-- [Decisions guide](https://developers.openai.com/api/docs/guides/decisions)
-- [Decisions routing Cookbook](https://developers.openai.com/cookbook/examples/decisions/customer_request_routing)
-- [Realtime evaluation Cookbook](https://developers.openai.com/cookbook/examples/realtime_eval_guide)
+The original deterministic component checks, baselines and artifact graders remain available under secondary tabs. They are useful debugging tools, not prerequisites for the profile journey. Their design is preserved in [component architecture](ambi-bench-component-architecture.md) and [component checks](../bench/COMPONENT_CHECKS.md).

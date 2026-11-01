@@ -30,7 +30,7 @@ def main():
         import uvicorn
         from bench.server import create_app
         print(f"AMBI-Bench: http://127.0.0.1:{args.port} (no sensors or desktop actions started)", flush=True)
-        uvicorn.run(create_app(port=args.port), host="127.0.0.1", port=args.port, access_log=False)
+        uvicorn.run(create_app(port=args.port), host="127.0.0.1", port=args.port, access_log=False, timeout_graceful_shutdown=2)
         return 0
     return asyncio.run(run_once(args))
 

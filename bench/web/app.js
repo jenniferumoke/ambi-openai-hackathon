@@ -1,3 +1,4 @@
+import { createProfileUI } from "./profiles.js";
 const $ = (id) => document.getElementById(id);
 const node = (tag, text, cls) => {
   const el = document.createElement(tag);
@@ -51,6 +52,7 @@ function button(label, fn, cls = "secondary") {
   el.onclick = () => action(fn);
   return el;
 }
+const profileUI = createProfileUI({ api, action, notice });
 function modeNote() {
   const live = $("mode").value === "live",
     baseline = $("adapter").value !== "product";
@@ -463,6 +465,7 @@ function renderWorkspaces(items) {
   );
 }
 function update(next) {
+  profileUI.update(next.profile_sessions, next.profile_app);
   state = next;
   $("restart-warning").hidden = !state.restart_required;
   modeNote();
@@ -508,6 +511,7 @@ async function bootstrap() {
     $("case-count").textContent = catalog.cases.length;
     $("dataset-version").textContent = `Fixture set ${catalog.version}`;
     renderCatalog(data.workspace_catalog);
+    profileUI.setCatalog(data.profiles);
     update(data);
     connect();
   } catch (err) {

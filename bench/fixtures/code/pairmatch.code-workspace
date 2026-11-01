@@ -1,0 +1,9 @@
+{
+  "folders": [{"path": "."}],
+  "settings": {
+    "editor.fontSize": 14,
+    "editor.wordWrap": "on",
+    "workbench.editor.enablePreview": false,
+    "files.exclude": {"**/__pycache__": true}
+  }
+}

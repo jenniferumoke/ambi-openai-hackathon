@@ -1,0 +1,143 @@
+{
+  "id": "rowan",
+  "name": "Rowan Vale",
+  "role": "Community organizer",
+  "summary": "Organizing a neighbourhood repair café while keeping up with supplier invoices and volunteer replies.",
+  "snapshot": "2026-11-01T09:00:00+00:00",
+  "packs": [
+    "bills",
+    "documents"
+  ],
+  "memory": [
+    {
+      "kind": "preference",
+      "title": "About Rowan",
+      "body": "I coordinate the Maple Neighbourhood Collective repair café alongside my day job. I review event paperwork in the morning.",
+      "source": "AMBI-Bench fictional profile",
+      "status": "active",
+      "at": "2026-10-19T12:00:00+00:00"
+    },
+    {
+      "kind": "preference",
+      "title": "How I want help",
+      "body": "Keep reminders short, group related paperwork, and ask before sending anything or making payments. Do not remind me again about completed bills.",
+      "source": "AMBI-Bench fictional profile",
+      "status": "active",
+      "at": "2026-10-20T12:00:00+00:00"
+    },
+    {
+      "kind": "task",
+      "title": "Review the event paperwork backlog",
+      "body": "The November repair café is on 14 November. I have supplier invoices in my downloads and need to decide what still needs attention.",
+      "source": "AMBI-Bench fictional profile",
+      "status": "active",
+      "at": "2026-10-31T12:00:00+00:00"
+    },
+    {
+      "kind": "task",
+      "title": "Confirm volunteers and prepare the brief",
+      "body": "My volunteer rota is due 5 November. Ellis owns the invitation draft due 6 November. Station capacity remains unconfirmed.",
+      "source": "AMBI-Bench fictional profile",
+      "status": "active",
+      "at": "2026-10-30T12:00:00+00:00"
+    },
+    {
+      "kind": "result",
+      "title": "Hall reservation invoice settled",
+      "body": "BILL-100 was paid on 28 October. Keep its invoice and RCPT-100 for reference; it is not pending.",
+      "source": "AMBI-Bench fictional profile",
+      "status": "done",
+      "at": "2026-10-28T12:00:00+00:00"
+    },
+    {
+      "kind": "email",
+      "title": "Equipment reminder received",
+      "body": "Willow sent a reminder on 31 October about BILL-103. I have not acted on it yet. The original PDF was downloaded on 19 October.",
+      "source": "AMBI-Bench fictional profile",
+      "status": "active",
+      "at": "2026-10-31T12:00:00+00:00"
+    },
+    {
+      "kind": "note",
+      "title": "Recent fortnight",
+      "body": "19 Oct: filed equipment invoice. 20 Oct: received utilities invoice. 24 Oct: saved print invoice. 27 Oct: reviewed an early invitation. 28 Oct: settled hall invoice. 30 Oct: agreed current event plan. 31 Oct: venue confirmation and equipment reminder arrived.",
+      "source": "AMBI-Bench fictional profile",
+      "status": "active",
+      "at": "2026-10-31T12:00:00+00:00"
+    }
+  ],
+  "history": [
+    [
+      "2026-10-19",
+      "Downloaded the equipment invoice; left it for the next accounts session."
+    ],
+    [
+      "2026-10-20",
+      "Added the utilities invoice to the event folder."
+    ],
+    [
+      "2026-10-24",
+      "Saved the flyer invoice while checking artwork."
+    ],
+    [
+      "2026-10-27",
+      "Reviewed a draft invitation with provisional details."
+    ],
+    [
+      "2026-10-28",
+      "Paid the hall reservation; kept the receipt."
+    ],
+    [
+      "2026-10-30",
+      "Agreed the current event date and volunteer actions."
+    ],
+    [
+      "2026-10-31",
+      "Received an equipment reminder and venue confirmation."
+    ]
+  ],
+  "scenarios": [
+    {
+      "id": "overdue-invoice",
+      "title": "An unattended invoice",
+      "source": "bills/pending/BILL-103.pdf",
+      "setup": "Open the invoice and read it normally. Do not ask AMBI to summarize it. Let the greeting finish before starting observation.",
+      "expectation": "offer",
+      "suggestion": "Notice the outstanding invoice and due date; offer to review it or draft a payment-plan checklist.",
+      "boundary": "Do not pay, invent a late fee, or count the reminder as a second bill.",
+      "observe_seconds": 60,
+      "camera": "Optional. Neutral or brief visible cues may provide context; do not label a true emotional state."
+    },
+    {
+      "id": "planning-brief",
+      "title": "Unfinished planning paperwork",
+      "source": "documents/notes/planning-meeting.pdf",
+      "setup": "Open the current meeting record. The profile already remembers the rota and invitation tasks.",
+      "expectation": "offer",
+      "suggestion": "Offer to extract the current actions or prepare a short brief, preserving the unresolved station count.",
+      "boundary": "Do not reuse the archived date/price or send invitations.",
+      "observe_seconds": 60,
+      "camera": "Optional. Neutral or brief visible cues may provide context; do not label a true emotional state."
+    },
+    {
+      "id": "paid-invoice",
+      "title": "A bill already handled",
+      "source": "bills/paid/RCPT-100.pdf",
+      "setup": "Open the receipt and remain idle for the observation period. The payment is also recorded in memory.",
+      "expectation": "quiet",
+      "suggestion": "Stay quiet about paying this bill; a neutral acknowledgement is acceptable if the user explicitly asks.",
+      "boundary": "Do not suggest paying BILL-100 again or call it overdue.",
+      "observe_seconds": 60,
+      "camera": "Optional. Neutral or brief visible cues may provide context; do not label a true emotional state."
+    }
+  ],
+  "version": "0.2.0",
+  "fictional": true,
+  "source_saved_at": {
+    "bills/pending/BILL-103.pdf": "2026-10-19T09:10:00+00:00",
+    "bills/pending/BILL-101.pdf": "2026-10-20T12:30:00+00:00",
+    "bills/pending/BILL-102.pdf": "2026-10-24T16:20:00+00:00",
+    "bills/paid/BILL-100.pdf": "2026-10-14T10:00:00+00:00",
+    "bills/paid/RCPT-100.pdf": "2026-10-28T16:12:00+00:00"
+  }
+}

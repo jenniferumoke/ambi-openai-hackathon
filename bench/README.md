@@ -1,101 +1,86 @@
-# AMBI-Bench
+# AMBI-Bench: profile lab
 
-A local evaluation dashboard for the team's AMBI implementation. Run real decision logic against labelled synthetic observations, or prepare a fictional workspace and verify the artifact produced by the actual app.
+A simple way to test AMBI's proactive behavior: **load a fictional user → open their sources → observe AMBI → record whether its suggestion was useful**. The primary result is a short human review of a real session, not a leaderboard score.
 
-## Start
+## Start locally
 
 From the repository root:
 
 ```sh
 uv sync --locked --python 3.12
+(cd ui && npm ci && npm run build)
 uv run python -m bench --serve
 ```
 
-Open **http://127.0.0.1:8766**. No frontend build or new dependencies are needed. The dashboard does not start AMBI's camera, microphone or desktop worker. Keep AMBI on its own port, 8765, using the root README instructions.
+Open **http://127.0.0.1:8766**. The dashboard uses the existing Python dependencies and needs no separate frontend build. The `ui` build above is for the actual AMBI app that the lab launches.
 
-1. In **Results**, select offline mode and AMBI implementation, then **Run evaluation**.
-2. Watch real progress, suite bars, the decision matrix and the scenario grid.
-3. Select **Failures & errors** and open a case to inspect its expected/observed values, rationale and inputs.
-4. Run the always-quiet and always-intervene baselines. **Policy comparison** uses only the policy suite, matching dataset, source fingerprint and split. Never compare a 24-case baseline's aggregate score to all 50 product cases.
-5. Export JSON for reproducible evidence. Reports, prepared folders and local paths stay under ignored `data/bench/`.
+## The core journey
 
-CLI equivalents:
+1. On **Profiles**, load Rowan, Ellis or Nora. This creates a fresh source folder and memory database under ignored `data/bench/profiles/<session>/`. Your normal AMBI database is not replaced.
+2. Choose a scenario. Open its source or **Open demo workspace**. For Ellis, **Open coding session** opens the generated workspace, function and failing log through your installed `code` command (VS Code or Cursor).
+3. Click **Launch AMBI with this memory**, then **Open AMBI**. The unmodified team app runs on port 8765 with the selected database and no default hackathon-memory seed. If another app already uses that port, the lab refuses to replace it.
+4. In AMBI, start a session and wait for its greeting to finish. Back in the lab, click **Begin observation**, then show the scenario source and keep the reviewer instructions out of the observed screen. Do not ask AMBI for the expected answer. Observe for about 60 seconds.
+5. Click **Capture AMBI response**, review the suggestion against the short expectation, and **Save review**. You can also enter a manual observation. Export the session JSON if needed.
 
-```sh
-uv run python -m bench
-uv run python -m bench --adapter always_quiet
-uv run python -m bench --adapter always_intervene
-uv run python -m bench --split holdout
-uv run pytest tests/test_bench.py -q
-```
+The lab launches the app server; it does not silently enable the microphone, camera or screen observer. AMBI's own session controls and permissions remain in charge. Live sessions need the team's configured `OPENAI_API_KEY` in the ignored `.env`. ChatGPT subscription login is not a drop-in credential for the current Decisions/Realtime implementation. Use **Stop demo AMBI** before launching another profile.
 
-The CLI returns nonzero for failures/errors. A failing product scenario is useful benchmark evidence; the grader tests can pass while AMBI has a regression.
+## Included profiles
 
-## Test the actual app with curated workspaces
-
-In **Workspaces**, choose **Prepare workspace**, then **Open in editor**. **Copy task** provides the exact folder and task to give AMBI. Start the actual AMBI app with the team's configured credentials, give it that task, wait for it to save the output, then click **Verify saved result** in AMBI-Bench.
-
-| Scenario | Source files | Required result | Verification |
+| Profile | Two-week context | Sources | Scenarios |
 | --- | --- | --- | --- |
-| Pending bills | Three unpaid fictional bills; one paid bill | `outputs/payment-plan.json` | £153 unpaid, only BILL-103 overdue, due-date order, paid bill excluded, source hashes unchanged |
-| Meeting notes | Current note plus superseded draft | `outputs/meeting-brief.md` | Current event facts, sections, decisions, owner/deadline pairs, unknown station count, source hashes unchanged |
-| Coding session | Broken `two_sum`, task README | Repaired `exercise.py` | Eight executable vectors, duplicate/negative/empty inputs, distinct indices, no mutation, unchanged README |
+| Rowan Vale, community organizer | Paperwork backlog, volunteer tasks, completed hall payment | Four formatted invoice PDFs, one receipt, supplier emails, approved meeting record and withdrawn draft | Unattended invoice; planning brief; paid bill that should not trigger another payment reminder |
+| Ellis Reed, developer | Paused debugging, agreed function contract, resolved setup issue | Real editor workspace, broken function, PM-17 issue, visible tests, captured failing session | Offer help with concrete failing tests; avoid interrupting ordinary reading |
+| Nora Patel, trip planner | Budgets/preferences, unfinished arrangements, completed museum decision | Local email messages, itinerary, saved train comparison | Expiring hotel hold; unanswered dinner email; leave a resolved planning question alone |
 
-Every preparation makes a fresh copy. All people, bills and addresses are fictional; no payment, sending or deletion is requested. Bills are dated relative to **1 November 2026**, not the day the test is rerun. The source dataset is committed in `bench/fixtures/`; prepared folders and results are ignored. The launcher uses the installed `code` command, which may point to VS Code or Cursor. Any editor can open the generated folder.
+All users, organizations, events, email domains, travel details, prices and transactions are fictional. The snapshot is **1 November 2026**. These are offline saved sources, not live inboxes or real travel offers. The app currently sees the open desktop and its stored memory; this lab does not add background Downloads watching or real email integration to AMBI.
 
-This is an **operator-driven app test**: AMBI-Bench does not impersonate AMBI or silently run desktop actions. A passing artifact does not prove which agent created it, that no external side effects occurred, or that the entire voice/camera journey worked. Report who/what produced the artifact in your demo notes. The automated grader tests use reference answers and are not evidence of AMBI task success.
+Profiles contain identity/preferences, attributed memory, a dated activity timeline and scenario setup. Source copies retain plausible historical file-modification times, including the equipment invoice downloaded on 19 October. Each new preparation resets the demo data. Memory rows use the team's real `MemoryStore` schema.
 
-Document checks are deliberately bounded lexical checks, not a semantic judge. Follow TASK.md's date/time and action-line format. They can reject valid paraphrases or miss other unsupported prose. Code evaluation accepts only the small plain-function subset described in the exercise, runs in a separate process with a three-second timeout, and is not a general Python sandbox. Do not point it at arbitrary untrusted projects.
+## What counts as a result
 
-## Live model evaluation
+Choose **Helpful suggestion**, **Wrong or unwanted suggestion**, **Correctly stayed quiet**, **Missed the opportunity**, or **Not tested yet**, and record what happened. These are operator assessments. There is no model judge, ranking, or automatic claim that the agent succeeded.
 
-The 62 authored scenarios contain **50 offline product cases** and **12 live classifier cases**. Live product mode invokes the existing `AmbientClassifier` via Decisions. Configure the team's `OPENAI_API_KEY` in the ignored local `.env` and restart the server. Do not paste keys into the dashboard or chat.
+Captures include new assistant text, the current suggestion and recent suggestion events, focus state, whether camera data was present, and elapsed observation time. They exclude the greeting and raw user transcript. A new user turn is flagged so a prompted answer is not mistaken for proactive behavior. Captures read only a lab-launched process whose memory marker matches the selected profile. They do not record screenshots, microphone audio or camera images.
+
+Capture while the observation is fresh: AMBI's in-memory transcript/event buffers are bounded. A single late capture is not a guaranteed full recording. The observation window is an operator guideline, not a claim about real-world response latency. Camera cues are optional hints, not ground truth about mood.
+
+## Moving to the VNC desktop
+
+Use the same repository, fixture files and profile manifests on the test machine. On that machine, the standalone entry point can prepare and load a fresh profile:
 
 ```sh
-uv run python -m bench --mode live --split dev
+uv run python -m bench.profile_app --profile rowan
 ```
 
-Model: `DECISIONS_MODEL`, default `gpt-6-luna`, matching AMBI. Calls are sequential, have no automatic retries, and stop after three consecutive adapter errors. The UI disables live product runs when no key is available. Baselines do not call a model even in live mode. ChatGPT subscription login is not a drop-in credential for the team's Decisions/Realtime routes.
+Or run the dashboard there and use the same buttons in the VNC desktop's browser. Connections stay on that machine's loopback addresses. **VNC transport and the team's AMBI compatibility with that host are not configured or validated yet.** The current local smoke test was on macOS. Do not assume a profile launcher changes AMBI's OS support or grants desktop permissions.
 
-No live model or hardware success is implied by an offline run. A scripted scheduler classifier is labelled as such in its report.
+## Add or edit a profile
 
-## Curating and reviewing cases
+Edit a manifest under `bench/profiles/` or add a new JSON file using the same structure. Keep source packs under `bench/fixtures/`. Include a dated history and truthful completed-task memory, both helpful-offer and stay-quiet scenarios, the file to show, a short expected suggestion and a clear boundary. Keep names and details invented; use `.example` email domains. `packs` names must refer to local fixture folders.
 
-`cases.json` contains stable IDs, suite/category, inputs, expected outputs, rationale, severity and a dev/holdout split. Another teammate should review the labels independently before demo claims. The holdout split is a development convention, not an independently hidden test set. The initial fixtures were authored while inspecting AMBI's implementation; do not claim broad population validity or a fair comparison between unrelated agents.
+AMBI's memory briefing has a length budget; keep important identity/preferences and active tasks concise. The expected answer belongs in the reviewer scenario, not in a fake assistant response. The saved sources should support the answer. Rebuild the PDFs after changing their Markdown sources or invoice data:
 
-For each added scenario:
+```sh
+uv run --with reportlab==4.4.9 python bench/tools/build_documents.py
+```
 
-1. Define a user-visible requirement and a success/failure oracle first.
-2. Use synthetic inputs or material with explicit reuse permission. Record its source and licence.
-3. Include a normal/quiet case and a plausible failure case. For artifacts, test both a valid reference and a near-miss answer.
-4. Run the grader tests, check a trivial baseline, and freeze the dataset version before comparing runs.
+ReportLab is only an optional authoring dependency. Committed PDFs work without installing it. Render and visually review changed pages before committing them. `test_examples.py` inside the coding fixture is deliberately failing until AMBI or the operator fixes `exercise.py`; it is not part of the repository's passing test suite.
 
-Errors never count as passes; unavailable denominators show as unavailable. Latencies are adapter wall times, with separate suite percentiles. Scheduler timings include the observation window and are not camera-to-speech measurements.
+## Validation and secondary tools
 
-## Current finding and demo evidence
+```sh
+uv run pytest tests/test_profile_lab.py tests/test_bench.py -q
+uv run pytest -q
+```
 
-On initial base `f5f38bb`, offline evaluation completed **49/50** with one critical failure, **A11**: a worker-generation change during queued proactive delivery is not checked by the final `still_relevant` guard. The adapter simulates the transport wait and invokes the real guard. It does not play audio. Reproduce by running the suite and opening A11. The product source has intentionally not been modified by this eval change.
+**Developer checks** retain the earlier 50 offline component cases and 12 live classifier cases. **Artifact checks** retain optional saved-output verification. Neither is required for the primary profile journey. See [component checks](COMPONENT_CHECKS.md) for those commands, metrics and the previously discovered A11 scheduler race.
 
-The other 49 cases passing does not establish live model quality or camera accuracy. Retest this finding after any team integration.
+The profile loader has been tested for independent memory stores, source access boundaries, file age, preview escaping, greeting exclusion, and refusal to capture a different AMBI session. A successful loader test is not a successful live AMBI behavior test.
 
-## Team sync
+## Demo and credit
 
-Work on `ambi-bench`. Fetch `origin` regularly. Merge `origin/main` only at a clean checkpoint with no benchmark running; do not stash teammates' work, force-push or merge unmerged feature branches automatically. `data/bench/running.lock` marks an active run. Restart the benchmark server after source changes: the UI detects changed imported code, and runs changed mid-execution are marked invalidated.
+A 75-second demo can show a profile's history (10s), open its invoice/email (15s), show an actual proactive AMBI suggestion (30s), then save the review and explain what was observed (20s). Record the actual live result; never present a prepared expectation or reference answer as AMBI output. Keep the reviewer page out of the observed desktop. Use only the fictional profile windows in the recording. Publish the final video with public, signed-out access and a maximum duration of 90 seconds.
 
-Reports identify commit, origin/main base, dirty-worktree state, source/dataset hashes, execution mode, model (if used), split and exact results. Only compare compatible reports. Historical reports from other dataset versions remain inspectable but are excluded from the policy comparison chart.
+Profile manifests, source documents, code fixtures and the lab were authored during the hackathon with Codex. No real personal records or third-party document templates were used. Codex connected the team's existing memory and server interfaces without modifying product behavior, built reproducible profile sessions, and wrote isolation/capture checks. The earlier component suite also exposed a missing final worker-generation guard (A11). The team's imported prototype retains its existing history and credits.
 
-## 75-second evaluation demo
-
-- **0–10s:** Explain: AMBI should help when useful and stay quiet otherwise.
-- **10–25s:** Run offline evaluation; show live suite bars and A11's failure.
-- **25–40s:** Show the quiet/intervene baseline comparison: silence alone is not success.
-- **40–65s:** Show a previously prepared fictional workspace, AMBI's actual task completion, and artifact verification. Record this segment only after a real app run; do not present reference-answer tests as AMBI output.
-- **65–75s:** Show reproducible JSON and source. Explain Codex's concrete contribution: it inspected the team's real scheduling code, authored a race scenario, and exposed the missing final generation check.
-
-Before submission, record the actual workflow, keep the complete video under 90 seconds, exclude keys and personal windows, and open the public repository/video URLs in a signed-out browser. This local dashboard URL is not a public submission link.
-
-## Credits and references
-
-Benchmark code and fictional fixtures were authored during this hackathon with Codex. No benchmark-site code, fonts, datasets or visual assets were copied. The interface takes structural inspiration from [SWE-bench](https://www.swebench.com/) and [Terminal-Bench on Harbor Hub](https://hub.harborframework.com/datasets/terminal-bench/terminal-bench/latest?leaderboard=terminal-bench&tab=leaderboard): compact tables, comparable runs and inspectable task evidence. AMBI's pre-existing prototype and dependencies retain the credits in the root README and Git history.
-
-See [architecture](../docs/ambi-bench-architecture.md), [OpenAI eval guidance](https://developers.openai.com/api/docs/guides/evaluation-best-practices), [Decisions](https://developers.openai.com/api/docs/guides/decisions), and the [Decisions Cookbook example](https://developers.openai.com/cookbook/examples/decisions/customer_request_routing).
+The interface remains plain and compact. The earlier table/chart layout drew structural inspiration from SWE-bench and Terminal-Bench; the primary workflow is now a profile lab rather than a competitive benchmark. See [architecture](../docs/ambi-bench-architecture.md).
