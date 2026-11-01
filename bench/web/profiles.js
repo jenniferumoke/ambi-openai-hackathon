@@ -1,38 +1,28 @@
 const el = (tag, text, cls) => {
-  const n = document.createElement(tag);
-  if (text != null) n.textContent = text;
-  if (cls) n.className = cls;
-  return n;
+  const node = document.createElement(tag);
+  if (text != null) node.textContent = text;
+  if (cls) node.className = cls;
+  return node;
 };
-const link = (label, url) => {
-  const a = el("a", label, "secondary source-link");
-  a.href = url;
-  a.target = "_blank";
-  a.rel = "noopener";
-  return a;
-};
-const verdicts = {
-  helpful: "Helpful suggestion",
-  unwanted: "Wrong or unwanted suggestion",
-  quiet: "Correctly stayed quiet",
-  missed: "Missed the opportunity",
-  not_tested: "Not tested yet",
+const link = (label, url, cls = "secondary source-link") => {
+  const node = el("a", label, cls);
+  node.href = url;
+  node.target = "_blank";
+  node.rel = "noopener";
+  return node;
 };
 
 export function createProfileUI({ api, action, notice }) {
-  let catalog = [],
-    sessions = [],
-    app = {},
-    selectedId = null,
-    scenarioId = null,
-    signature = "",
-    catalogSignature = "";
-  const drafts = new Map();
+  let sessions = [], app = {}, selectedId = null, scenarioId = null;
+  let signature = "", catalogSignature = "";
   const button = (text, fn, cls = "secondary") => {
-    const b = el("button", text, cls);
-    b.type = "button";
-    b.onclick = () => action(fn);
-    return b;
+    const node = el("button", text, cls);
+    node.type = "button";
+    node.onclick = () => action(async () => {
+      node.disabled = true;
+      try { await fn(); } finally { node.disabled = false; }
+    });
+    return node;
   };
   const accept = (item) => {
     selectedId = item.id;
@@ -40,41 +30,21 @@ export function createProfileUI({ api, action, notice }) {
     render();
   };
   function setCatalog(items) {
-    catalog = items;
     const next = JSON.stringify(items);
     if (next === catalogSignature) return;
     catalogSignature = next;
-    document.getElementById("profile-catalog").replaceChildren(
-      ...items.map((p) => {
-        const card = el("article", null, "profile-card");
-        card.dataset.profile = p.id;
-        card.append(
-          el("h2", p.name),
-          el("span", p.role, "subtle"),
-          el("p", p.summary),
-        );
-        const meta = el(
-          "div",
-          `${p.memory.length} memories · ${p.scenarios.length} scenarios · 2 weeks`,
-          "profile-meta",
-        );
-        card.append(
-          meta,
-          button(
-            "Open " + p.name.split(" ")[0] + "’s profile",
-            async () => {
-              scenarioId = null;
-              const existing = sessions.find(
-                (s) => s.profile.id === p.id && s.id === app.session_id && app.running,
-              ) || sessions.find((s) => s.profile.id === p.id);
-              accept(existing || await api("profile-prepare", { profile: p.id }));
-            },
-            "primary",
-          ),
-        );
-        return card;
-      }),
-    );
+    document.getElementById("profile-catalog").replaceChildren(...items.map((p) => {
+      const card = button("", async () => {
+        scenarioId = null;
+        const existing = sessions.find((s) => s.profile.id === p.id && app.running && s.id === app.session_id)
+          || sessions.find((s) => s.profile.id === p.id);
+        accept(existing || await api("profile-prepare", { profile: p.id }));
+      }, "profile-card");
+      card.dataset.profile = p.id;
+      card.setAttribute("aria-label", `Choose ${p.name}`);
+      card.append(el("strong", p.name), el("span", p.role, "subtle"), el("span", p.summary, "profile-summary"));
+      return card;
+    }));
   }
   function update(items, appState) {
     sessions = items || [];
@@ -92,343 +62,78 @@ export function createProfileUI({ api, action, notice }) {
     for (const card of document.querySelectorAll(".profile-card")) {
       const selected = card.dataset.profile === item?.profile.id;
       card.classList.toggle("selected", selected);
-      card.querySelector("button").setAttribute("aria-pressed", String(selected));
+      card.setAttribute("aria-pressed", String(selected));
     }
     if (!item) {
-      target.replaceChildren(
-        el(
-          "p",
-          "Load a profile to see its memory, sources and test scenarios.",
-          "empty",
-        ),
-      );
+      target.replaceChildren(el("p", "Choose a person above to get started.", "empty"));
       return;
     }
-    const profile = item.profile;
-    if (!profile.scenarios.some((s) => s.id === scenarioId))
-      scenarioId = profile.scenarios[0].id;
-    const scenario = profile.scenarios.find((s) => s.id === scenarioId),
-      observation = item.observations[scenarioId],
-      capture = observation?.captures.at(-1);
-    const key = item.id + ":" + scenarioId,
-      draft = drafts.get(key) || { verdict: "not_tested", notes: "" };
+    const profile = item.profile, firstName = profile.name.split(" ")[0];
+    if (!profile.scenarios.some((s) => s.id === scenarioId)) scenarioId = profile.scenarios[0].id;
+    const scenario = profile.scenarios.find((s) => s.id === scenarioId);
     const running = app.running && app.session_id === item.id;
-    const head = el("div", null, "section-heading");
-    head.append(el("h2", `${profile.name} / ${profile.role}`));
-    const steps = el("div", null, "profile-steps");
-    for (const [i, label, done] of [
-      [1, "Memory loaded", true],
-      [2, "Sources ready", true],
-      [3, "Observation", Boolean(observation)],
-      [4, "Review suggestion", item.reviews.length > 0],
-    ]) {
-      const step = el("span", `${i}. ${label}`, done ? "done" : "");
-      steps.append(step);
-    }
-    const actions = el("div", null, "profile-actions");
-    actions.append(
-      link("Open demo workspace", `/profile-files/${item.id}/desktop.html`),
-    );
-    if (profile.packs.includes("code"))
-      actions.append(
-        button("Open coding session", () =>
-          api("profile-editor", { id: item.id }),
-        ),
-      );
-    if (running) {
-      actions.append(
-        link("Open AMBI", "http://127.0.0.1:8765"),
-        button("Stop demo AMBI", async () => {
-          await api("profile-stop");
-          notice(
-            "Demo AMBI stopped. The profile folder and results are retained.",
-            false,
-          );
-        }),
-      );
-    } else if (app.running) {
-      actions.append(
-        button("Stop current demo to switch profiles", async () => {
-          await api("profile-stop");
-          notice(
-            "Previous demo stopped. You can now launch this profile.",
-            false,
-          );
-        }),
-      );
-    } else
-      actions.append(
-        button(
-          "Launch AMBI with this memory",
-          async () => {
-            await api("profile-launch", { id: item.id });
-            notice(
-              "Demo AMBI is ready on port 8765. Open it and start the session when ready.",
-              false,
-            );
-          },
-          "primary",
-        ),
-      );
-    const setup = el(
-      "p",
-      "1. Open a source or coding session. 2. Launch AMBI with this memory and start its session. 3. Let the greeting finish, then begin observation. Keep this reviewer page out of the observed desktop.",
-      "profile-instructions",
-    );
-    const grid = el("div", null, "profile-layout"),
-      context = el("section", null, "profile-context"),
-      test = el("section", null, "profile-test");
-    context.append(el("h3", "Recent activity"));
+    const example = el("section", null, "demo-step");
+    example.append(el("h2", "1. Pick a situation"));
+    const choices = el("div", null, "scenario-choices");
+    choices.setAttribute("role", "group");
+    choices.setAttribute("aria-label", "Example situation");
+    profile.scenarios.forEach((s) => {
+      const choice = button(s.title, () => { scenarioId = s.id; render(); });
+      choice.setAttribute("aria-pressed", String(s.id === scenario.id));
+      choices.append(choice);
+    });
+    example.append(choices);
+    const sources = el("div", null, "profile-actions");
+    sources.append(link("Open example", `/profile-view/${item.id}/${scenario.source.split("/").map(encodeURIComponent).join("/")}`));
+    if (profile.packs.includes("code")) sources.append(button("Open in editor", () => api("profile-editor", { id: item.id })));
+    example.append(sources);
+
+    const launch = el("section", null, "demo-step");
+    launch.append(el("h2", "2. Open AMBI"));
+    launch.append(el("p", `AMBI gets ${firstName}’s demo memory. In AMBI, click Start session and let the greeting finish.`));
+    const launchActions = el("div", null, "profile-actions");
+    if (running) launchActions.append(link("Open AMBI", "http://127.0.0.1:8765", "primary source-link"));
+    else launchActions.append(button(app.running ? `Switch AMBI to ${firstName}` : "Launch AMBI", async () => {
+      if (app.running) await api("profile-stop");
+      await api("profile-launch", { id: item.id });
+      notice("AMBI is ready. Click Open AMBI below, then Start session.", false);
+    }, "primary"));
+    launch.append(launchActions);
+    if (app.running && !running) launch.append(el("p", "Switching ends the current demo session.", "subtle"));
+
+    const watch = el("section", null, "demo-step");
+    watch.append(el("h2", "3. See what AMBI notices"));
+    watch.append(el("p", "Return to the example window and wait about a minute without asking for help. Keep this page out of AMBI’s view."));
+    const expectation = el("div", null, "demo-expectation");
+    expectation.append(el("strong", scenario.expectation === "offer" ? "What to look for" : "This time, staying quiet is helpful"), el("p", scenario.suggestion));
+    watch.append(expectation, el("p", "Watch the actual response in AMBI. A suggestion is an offer; you decide whether to act.", "subtle"));
+
+    const context = el("details", null, "demo-details");
+    context.append(el("summary", `About ${firstName} and the demo files`));
+    context.append(el("p", profile.summary), el("h3", "The last two weeks"));
     const timeline = el("ol", null, "activity-timeline");
     profile.history.forEach(([date, event]) => {
-      const li = el("li");
-      li.append(el("time", date.slice(5)), el("span", event));
-      timeline.append(li);
+      const row = el("li"); row.append(el("time", date.slice(5)), el("span", event)); timeline.append(row);
     });
     context.append(timeline);
-    const memories = el("details"),
-      summary = el("summary", `Loaded memory (${profile.memory.length} items)`);
-    memories.append(summary);
+    const memories = el("details", null, "demo-details");
+    memories.append(el("summary", "What AMBI remembers"));
     profile.memory.forEach((m) => {
       const row = el("div", null, "memory-item");
-      row.append(
-        el("strong", m.title),
-        el("small", `${m.kind} · ${m.status} · ${m.at.slice(0, 10)}`),
-        el("p", m.body),
-      );
-      memories.append(row);
+      row.append(el("strong", m.title), el("p", m.body)); memories.append(row);
     });
-    context.append(memories);
-    const sourceDetails = el("details");
-    sourceDetails.append(
-      el("summary", `Source files (${Object.keys(item.sources).length - 1})`),
-    );
-    const sources = el("ul", null, "source-files");
-    Object.keys(item.sources)
-      .filter((p) => p !== "desktop.html")
-      .forEach((path) => {
-        const li = el("li"),
-          a = link(
-            path,
-            `/profile-view/${item.id}/${path.split("/").map(encodeURIComponent).join("/")}`,
-          );
-        a.className = "";
-        li.append(a);
-        sources.append(li);
-      });
-    sourceDetails.append(sources);
-    context.append(sourceDetails);
-    const choose = el("label", "Scenario", "scenario-label"),
-      select = el("select");
-    select.setAttribute("aria-label", "Profile scenario");
-    profile.scenarios.forEach((s) => {
-      const option = el("option", s.title);
-      option.value = s.id;
-      option.selected = s.id === scenario.id;
-      select.append(option);
-    });
-    select.onchange = () => {
-      scenarioId = select.value;
-      render();
-    };
-    choose.append(select);
-    test.append(choose);
-    test.append(
-      el("p", scenario.setup, "scenario-setup"),
-      link(
-        "Open scenario source",
-        `/profile-view/${item.id}/${scenario.source.split("/").map(encodeURIComponent).join("/")}`,
-      ),
-    );
-    const expect = el("div", null, "scenario-expectation");
-    expect.append(
-      el(
-        "strong",
-        scenario.expectation === "offer"
-          ? "Expected: a relevant offer"
-          : "Expected: stay quiet",
-      ),
-      el("p", scenario.suggestion),
-      el("p", scenario.boundary, "subtle"),
-    );
-    test.append(expect);
-    const watch = el("div", null, "profile-actions");
-    const begin = button(
-      observation ? "Restart observation" : "Begin observation",
-      async () =>
-        accept(
-          await api("profile-observe", { id: item.id, scenario: scenario.id }),
-        ),
-    );
-    begin.disabled = !running;
-    const collect = button("Capture AMBI response", async () =>
-      accept(
-        await api("profile-capture", { id: item.id, scenario: scenario.id }),
-      ),
-    );
-    collect.disabled = !running || !observation;
-    watch.append(begin, collect);
-    test.append(watch);
-    test.append(
-      el(
-        "p",
-        `Observe for about ${scenario.observe_seconds} seconds without prompting for the answer. Camera cues are optional and do not establish a person’s mood.`,
-        "subtle",
-      ),
-    );
-    const evidence = el("div", null, "profile-evidence");
-    if (capture) {
-      evidence.append(
-        el("strong", `Captured after ${capture.elapsed_seconds}s`),
-      );
-      if (capture.user_prompted)
-        evidence.append(
-          el(
-            "p",
-            "A user turn occurred during this observation. Review whether the response was actually proactive.",
-            "warning",
-          ),
-        );
-      const texts = [
-        ...(capture.suggestion ? [capture.suggestion.text] : []),
-        ...(capture.suggestion_events || []),
-        ...capture.assistant_text,
-      ];
-      evidence.append(
-        el(
-          "p",
-          [...new Set(texts)].join("\n\n") ||
-            "No new suggestion or assistant speech captured.",
-        ),
-      );
-    } else
-      evidence.append(
-        el(
-          "p",
-          observation
-            ? "Observation started. Keep the scenario source visible, then capture the response."
-            : "No observation recorded. You can also record a manual review below.",
-          "subtle",
-        ),
-      );
-    test.append(evidence);
-    const form = el("form", null, "profile-review"),
-      verdictLabel = el("label", "Your assessment"),
-      verdictSelect = el("select");
-    verdictSelect.setAttribute("aria-label", "Assessment");
-    Object.entries(verdicts).forEach(([value, label]) => {
-      const option = el("option", label);
-      option.value = value;
-      option.selected = value === draft.verdict;
-      verdictSelect.append(option);
-    });
-    verdictLabel.append(verdictSelect);
-    const notesLabel = el("label", "What did AMBI say or do?"),
-      notes = el("textarea");
-    notes.rows = 3;
-    notes.maxLength = 3000;
-    notes.placeholder =
-      "Record the observed suggestion, or explain why it was missed or unwanted.";
-    notes.value = draft.notes;
-    notesLabel.append(notes);
-    const remember = () =>
-      drafts.set(key, { verdict: verdictSelect.value, notes: notes.value });
-    verdictSelect.onchange = remember;
-    notes.oninput = remember;
-    const save = el("button", "Save review", "primary");
-    save.type = "submit";
-    form.append(verdictLabel, notesLabel, save);
-    form.onsubmit = (e) => {
-      e.preventDefault();
-      action(async () => {
-        accept(
-          await api("profile-review", {
-            id: item.id,
-            scenario: scenario.id,
-            verdict: verdictSelect.value,
-            notes: notes.value,
-          }),
-        );
-        notice(
-          "Review saved locally. This is an operator assessment, not an automated grade.",
-          false,
-        );
-      });
-    };
-    test.append(form);
-    grid.append(context, test);
-    const reviews = el("section", null, "profile-results");
-    const reviewHead = el("div", null, "section-heading");
-    reviewHead.append(
-      el("h3", "Session results"),
-      button(
-        "Export session",
-        async () => {
-          const blob = new Blob([JSON.stringify(item, null, 2)], {
-              type: "application/json",
-            }),
-            url = URL.createObjectURL(blob),
-            a = el("a");
-          a.href = url;
-          a.download = `ambi-profile-${profile.id}-${item.id.slice(0, 8)}.json`;
-          a.click();
-          setTimeout(() => URL.revokeObjectURL(url), 1000);
-        },
-        "text-button",
-      ),
-    );
-    reviews.append(reviewHead);
-    if (!item.reviews.length)
-      reviews.append(
-        el(
-          "p",
-          "No results yet. Load a scenario, observe AMBI, then save your assessment.",
-          "empty",
-        ),
-      );
-    else {
-      const table = el("table"),
-        header = el("tr");
-      ["Scenario", "Assessment", "Notes"].forEach((label) =>
-        header.append(el("th", label)),
-      );
-      table.append(header);
-      item.reviews
-        .slice()
-        .reverse()
-        .forEach((r) => {
-          const row = el("tr");
-          row.append(
-            el(
-              "td",
-              profile.scenarios.find((s) => s.id === r.scenario_id)?.title ||
-                r.scenario_id,
-            ),
-            el("td", verdicts[r.verdict]),
-            el("td", r.notes || "—"),
-          );
-          table.append(row);
-        });
-      reviews.append(table);
-    }
-    target.replaceChildren(
-      head,
-      steps,
-      actions,
-      setup,
-      grid,
-      reviews,
-      button("Start a fresh test for this profile", async () => {
-        scenarioId = null;
-        accept(await api("profile-prepare", { profile: profile.id }));
-        notice("Fresh test prepared. Previous results are still saved locally.", false);
-      }, "text-button"),
-      el(
-        "p",
-        `Fictional snapshot ${profile.snapshot.slice(0, 10)} · fixture ${profile.version} · isolated session ${item.id.slice(0, 8)} · local sources and memory only`,
-        "provenance",
-      ),
-    );
+    context.append(memories, link("Browse all demo files", `/profile-files/${item.id}/desktop.html`));
+    const controls = el("div", null, "profile-actions");
+    controls.append(button("Reset demo data", async () => {
+      scenarioId = null;
+      accept(await api("profile-prepare", { profile: profile.id }));
+      notice("Fresh demo data is ready. Previous sessions remain saved locally.", false);
+    }, "text-button"));
+    if (running) controls.append(button("Stop demo AMBI", async () => {
+      await api("profile-stop"); notice("Demo AMBI stopped.", false);
+    }, "text-button"));
+    context.append(controls);
+    target.replaceChildren(example, launch, watch, context);
   }
   return { setCatalog, update };
 }

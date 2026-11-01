@@ -1,15 +1,14 @@
-# AMBI-Bench: simple profile lab
+# AMBI-Bench: simple demo
 
-The primary evaluation is a fictional person's desktop session, reviewed by a human. It asks: given this user's memory and current activity, did AMBI offer a useful next step or correctly stay quiet?
+The demo prepares a fictional person's desktop context. Visitors choose a person and situation, open AMBI, and watch whether it offers a useful next step or correctly stays quiet. There is no assessment form in the interface.
 
 ```mermaid
 flowchart LR
     Profile[Choose fictional user] --> Load[Fresh folder + isolated AMBI memory]
     Load --> Sources[Open invoice, inbox, or code session]
     Sources --> App[Existing AMBI app]
-    App --> Observe[Observe after greeting]
-    Observe --> Review[Useful / unwanted / quiet / missed / untested]
-    Review --> Result[Local result + optional captured response]
+    App --> Observe[Show source after greeting]
+    Observe --> Response[Watch the real response in AMBI]
 ```
 
 ## Profile contract
@@ -24,11 +23,11 @@ Initial profiles: Rowan (event paperwork), Ellis (debugging), Nora (trip plannin
 
 The dashboard can launch one owned demo process on loopback port 8765. It refuses to displace another server. Starting voice/camera/screen collection remains an explicit operation in AMBI's UI. The test machine must have the same app dependencies, credentials and OS permissions as an ordinary AMBI session.
 
-## Observe and review
+## Optional developer observation endpoints
 
 Begin observation only when the app is connected and its greeting has finished. Record the current transcript/event IDs, then capture new assistant output and suggestions. Verify the process and memory marker before reading session data. A user turn is counted but its text is not stored in the profile report; it warns the reviewer against counting prompted responses as proactive.
 
-The review is intentionally simple and manual. Saved results carry the expected behavior, operator verdict/notes, optional captured evidence, profile/source fingerprints and commit. No synthetic or scripted response is presented as a live result. AMBI's event/transcript buffers are bounded, so one late capture is not a full-session recording.
+These endpoints are retained for developer use and saved-session compatibility; the demo UI does not require capture or review. The review is manual. Saved results carry the expected behavior, operator verdict/notes, optional captured evidence, profile/source fingerprints and commit. No synthetic or scripted response is presented as a live result. AMBI's event/transcript buffers are bounded, so one late capture is not a full-session recording.
 
 ## Source surfaces
 

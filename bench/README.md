@@ -1,6 +1,6 @@
-# AMBI-Bench: profile lab
+# AMBI-Bench: hackathon demo
 
-A simple way to test AMBI's proactive behavior: **load a fictional user → open their sources → observe AMBI → record whether its suggestion was useful**. The primary result is a short human review of a real session, not a leaderboard score.
+Show AMBI's proactive behavior in three steps: **choose a person and situation → open AMBI → watch what it notices**. The dashboard prepares realistic context. The actual AMBI app provides the live response; there is no assessment form or score to complete.
 
 ## Start locally
 
@@ -16,13 +16,15 @@ Open **http://127.0.0.1:8766**. The dashboard uses the existing Python dependenc
 
 ## The core journey
 
-1. Open Rowan, Ellis or Nora using their profile card. This resumes their latest test (or their running AMBI session); the first visit creates a source folder and memory database under ignored `data/bench/profiles/<session>/`. Use **Start a fresh test for this profile** below the results when you want to reset the test data. Previous results stay saved locally. Your normal AMBI database is not replaced.
-2. Choose a scenario. Open its source or **Open demo workspace**. For Ellis, **Open coding session** opens the generated workspace, function and failing log through your installed `code` command (VS Code or Cursor).
-3. Click **Launch AMBI with this memory**, then **Open AMBI**. The unmodified team app runs on port 8765 with the selected database and no default hackathon-memory seed. If another app already uses that port, the lab refuses to replace it.
-4. In AMBI, start a session and wait for its greeting to finish. Back in the lab, click **Begin observation**, then show the scenario source and keep the reviewer instructions out of the observed screen. Do not ask AMBI for the expected answer. Observe for about 60 seconds.
-5. Click **Capture AMBI response**, review the suggestion against the short expectation, and **Save review**. You can also enter a manual observation. Export the session JSON if needed.
+1. Choose Rowan, Ellis or Nora. The card resumes their latest demo, or prepares separate memory and files on first use.
+2. Pick a situation and click **Open example**. Ellis also has **Open in editor**, using your installed `code` command (VS Code or Cursor).
+3. Click **Launch AMBI**, then **Open AMBI**. If another demo is running, **Switch AMBI** ends it and launches the selected person's memory. An unrelated app on port 8765 is never replaced.
+4. In AMBI, click **Start session** and let the greeting finish. Return to the example window, keep the demo instructions out of AMBI's view, and wait about a minute without asking for help.
+5. Watch the response in AMBI. The **What to look for** text describes the expected behavior, not an actual result. No review form, grading, capture or export is required.
 
-The lab launches the app server; it does not silently enable the microphone, camera or screen observer. AMBI's own session controls and permissions remain in charge. Live sessions need the team's configured `OPENAI_API_KEY` in the ignored `.env`. ChatGPT subscription login is not a drop-in credential for the current Decisions/Realtime implementation. Use **Stop demo AMBI** before launching another profile.
+History, memory, all files, reset and stop controls are tucked under **About … and the demo files**. Reset creates fresh data and retains previous sessions locally. Demo memory lives under ignored `data/bench/profiles/<session>/`; normal user memory is not replaced.
+
+The dashboard starts the app server, not its sensors. Start the session and grant permissions in AMBI. Live behavior needs the team's `OPENAI_API_KEY` in the ignored `.env`. The current app does not use ChatGPT subscription login as its API credential.
 
 ## Included profiles
 
@@ -36,13 +38,11 @@ All users, organizations, events, email domains, travel details, prices and tran
 
 Profiles contain identity/preferences, attributed memory, a dated activity timeline and scenario setup. Source copies retain plausible historical file-modification times, including the equipment invoice downloaded on 19 October. Each new preparation resets the demo data. Memory rows use the team's real `MemoryStore` schema.
 
-## What counts as a result
+## Showing the concept honestly
 
-Choose **Helpful suggestion**, **Wrong or unwanted suggestion**, **Correctly stayed quiet**, **Missed the opportunity**, or **Not tested yet**, and record what happened. These are operator assessments. There is no model judge, ranking, or automatic claim that the agent succeeded.
+Only the live response in AMBI demonstrates behavior. A loaded profile or successful launch does not prove that AMBI noticed anything. Some examples deliberately call for staying quiet. Camera cues are optional hints, not proof of mood.
 
-Captures include new assistant text, the current suggestion and recent suggestion events, focus state, whether camera data was present, and elapsed observation time. They exclude the greeting and raw user transcript. A new user turn is flagged so a prompted answer is not mistaken for proactive behavior. Captures read only a lab-launched process whose memory marker matches the selected profile. They do not record screenshots, microphone audio or camera images.
-
-Capture while the observation is fresh: AMBI's in-memory transcript/event buffers are bounded. A single late capture is not a guaranteed full recording. The observation window is an operator guideline, not a claim about real-world response latency. Camera cues are optional hints, not ground truth about mood.
+The underlying observation/review endpoints remain available for developer use and compatibility with saved sessions, but are not part of the demo interface. No automatic grading is performed.
 
 ## Moving to the VNC desktop
 
@@ -78,7 +78,7 @@ The profile loader has been tested for independent memory stores, source access 
 
 ## Demo and credit
 
-A 75-second demo can show a profile's history (10s), open its invoice/email (15s), show an actual proactive AMBI suggestion (30s), then save the review and explain what was observed (20s). Record the actual live result; never present a prepared expectation or reference answer as AMBI output. Keep the reviewer page out of the observed desktop. Use only the fictional profile windows in the recording. Publish the final video with public, signed-out access and a maximum duration of 90 seconds.
+A 75-second demo can show a profile's history (10s), open its invoice/email (15s), show an actual proactive AMBI suggestion (30s), then explain what AMBI noticed and the next step it offered (20s). Record the actual live result; never present a prepared expectation or reference answer as AMBI output. Keep this setup page out of the observed desktop. Use only the fictional profile windows in the recording. Publish the final video with public, signed-out access and a maximum duration of 90 seconds.
 
 Profile manifests, source documents, code fixtures and the lab were authored during the hackathon with Codex. No real personal records or third-party document templates were used. Codex connected the team's existing memory and server interfaces without modifying product behavior, built reproducible profile sessions, and wrote isolation/capture checks. The team's imported prototype retains its existing history and credits.
 

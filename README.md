@@ -178,8 +178,7 @@ uv run python -m bench --serve
 
 Open <http://127.0.0.1:8766> to load fictional user profiles with two weeks of
 activity, isolated demo memory, and realistic invoices, emails or coding sessions.
-Launch AMBI with a profile, observe its proactive suggestion, and save a simple
-review. Starting sensors remains explicit in AMBI. Live sessions need the team's
+Launch AMBI with a profile and watch its proactive suggestion in the actual app. Starting sensors remains explicit in AMBI. Live sessions need the team's
 API configuration. See [profile-lab setup](bench/README.md) for the workflow,
 local/VNC boundaries and demo instructions.
 

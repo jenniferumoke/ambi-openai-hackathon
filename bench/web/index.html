@@ -7,15 +7,15 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'"
     />
-    <title>AMBI-Bench / Evaluation lab</title>
+    <title>AMBI-Bench / Demo</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <header class="app-header">
       <a class="brand" href="/">AMBI-Bench</a>
       <nav aria-label="Main">
-        <button class="nav-item selected" data-tab="profiles">Profiles</button>
-        <button class="nav-item" data-tab="architecture">Methodology</button>
+        <button class="nav-item selected" data-tab="profiles">Demo</button>
+        <button class="nav-item" data-tab="architecture">How it works</button>
       </nav>
       <span id="connection" class="connection">Connecting</span>
     </header>
@@ -25,10 +25,9 @@
         <section id="profiles-view" class="view">
           <div class="page-heading">
             <div>
-              <h1>Profile lab</h1>
+              <h1>See AMBI in action</h1>
               <p>
-                Load a demo user, open their sources, and see what AMBI
-                suggests.
+                Choose a person, open an example, and see how AMBI can help.
               </p>
             </div>
             <span class="tag">Local desktop</span>
@@ -36,71 +35,25 @@
           <div id="profile-catalog" class="profile-catalog"></div>
           <div id="profile-session"></div>
           <p class="method-note">
-            All profiles and sources are fictional. Live AMBI needs the team's
-            API configuration. VNC can use the same profile packs once its
-            environment is ready.
+            Fictional people and documents. Live demos need the team’s API key and desktop permissions.
           </p>
         </section>
         <section id="architecture-view" class="view" hidden>
-          <div class="page-heading">
-            <div>
-              <h1>How the profile lab works</h1>
-              <p>
-                A prepared person, a realistic work context, and a short review
-                of AMBI’s behavior.
-              </p>
-            </div>
-          </div>
+          <div class="page-heading"><h1>How the demo works</h1></div>
           <div class="profile-method">
-            <div class="flow-node">
-              1. Load a profile<small
-                >Identity, preferences, two weeks of memory, and fresh source
-                files.</small
-              >
-            </div>
+            <div class="flow-node">A fictional person<small>Two weeks of activity, preferences and unfinished tasks.</small></div>
             <span class="flow-arrow">↓</span>
-            <div class="flow-node">
-              2. Open the scenario<small
-                >An invoice, an unanswered email, a trip plan, or an editor with
-                failing tests.</small
-              >
-            </div>
+            <div class="flow-node">A realistic situation<small>Show AMBI an invoice, an email or a coding problem.</small></div>
             <span class="flow-arrow">↓</span>
-            <div class="flow-node">
-              3. Observe the actual AMBI app<small
-                >Let the greeting finish. Show the source without asking for the
-                expected answer.</small
-              >
-            </div>
-            <span class="flow-arrow">↓</span>
-            <div class="flow-node">
-              4. Save a simple review<small
-                >Helpful, unwanted, correctly quiet, missed, or not tested.
-                Include what happened.</small
-              >
-            </div>
+            <div class="flow-node">A useful next step<small>See whether AMBI offers relevant help, or stays quiet when nothing needs attention.</small></div>
           </div>
-          <div class="boundaries">
-            <h2>Clear boundaries</h2>
-            <p>
-              Each profile gets its own local memory database. Source documents
-              and messages are fictional. Captures exclude the greeting and raw
-              user transcript; a user turn is flagged so a prompted response is
-              not mistaken for proactivity. Camera cues are optional hints, not
-              mood labels.
-            </p>
-            <p>
-              The VNC environment is still being prepared. For now, use this
-              machine. The same profile manifests and source packs can be loaded
-              on the test machine once AMBI works there.
-            </p>
-          </div>
+          <div class="boundaries"><p>Each person has separate demo memory and files. Open the actual AMBI app to see its response. This page describes the setup; it does not generate a scripted answer.</p></div>
         </section>
       </main>
       <footer class="app-footer">
         <span>AMBI-Bench <b>0.2</b></span
-        ><span>Synthetic fixtures · local execution</span
-        ><span id="footer-source">Local evaluation</span>
+        ><span>Fictional demo data</span
+        ><span id="footer-source">Hackathon demo</span>
       </footer>
     </div>
     <script type="module" src="/app.js"></script>
