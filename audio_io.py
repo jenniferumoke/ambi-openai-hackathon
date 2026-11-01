@@ -30,6 +30,7 @@ class AudioIO:
         self.allow_barge_in = allow_barge_in
         self.push_to_talk = push_to_talk
         self.microphone = asyncio.Queue(maxsize=100)
+        self.microphone_enabled = True
         self.tracker = RealtimePlaybackTracker()
         self._chunks = deque()
         self._generating = set()
@@ -184,7 +185,7 @@ class AudioIO:
                 # Recheck for microphone chunks queued just before playback began.
                 if self._mute_microphone():
                     chunk = bytes(len(chunk))
-                await session.send_audio(chunk)
+                await session.send_audio(chunk if self.microphone_enabled else bytes(len(chunk)))
                 self.recorded_bytes += len(chunk)
             finally:
                 self.microphone.task_done()

@@ -1,5 +1,6 @@
 import asyncio
 import json
+from contextlib import ExitStack
 from time import monotonic
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -13,6 +14,7 @@ from agents.realtime.model_inputs import RealtimeModelSendToolOutput, RealtimeMo
 from agents.realtime.testing import ScriptedRealtimeModel
 
 import main
+import audio_io
 import observation_sidecars
 from test_proactive_voice import noteworthy
 
@@ -38,6 +40,34 @@ class Audio:
 
     async def send_microphone(self, session):
         await asyncio.Event().wait()
+
+
+def test_native_audio_start_failure_uses_compatibility_backend(monkeypatch):
+    class FailedNative(Audio):
+        def __enter__(self):
+            raise RuntimeError("Could not start macOS voice audio: CoreAudio -10875")
+
+    fallback = Audio()
+    events = []
+    monkeypatch.setattr(audio_io, "AudioIO", lambda: fallback)
+    with ExitStack() as stack:
+        chosen = main.enter_voice_audio(
+            stack, FailedNative(), hands_free=True,
+            runtime=SimpleNamespace(emit=lambda *args, **kwargs: events.append((args, kwargs))),
+        )
+        assert chosen is fallback
+    assert fallback.closed
+    assert events == [(("audio_fallback",), {"reason": "voice_processing_start_failed"})]
+
+
+def test_unrelated_audio_error_is_not_hidden_by_fallback(monkeypatch):
+    class FailedNative(Audio):
+        def __enter__(self):
+            raise RuntimeError("microphone conversion failed")
+
+    monkeypatch.setattr(audio_io, "AudioIO", lambda: pytest.fail("unexpected fallback"))
+    with ExitStack() as stack, pytest.raises(RuntimeError, match="microphone conversion failed"):
+        main.enter_voice_audio(stack, FailedNative(), hands_free=True)
 
 
 @pytest.mark.parametrize("trigger", ["noteworthy_task", "combined_task_difficulty"])

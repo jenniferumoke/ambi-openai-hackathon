@@ -120,6 +120,21 @@ async def test_mic_chunks_queued_before_playback_are_silenced_before_sending(pla
         await audio.send_microphone(Session())
 
 
+async def test_microphone_control_silences_compatibility_backend():
+    audio = AudioIO()
+    audio._closed = False
+    audio.microphone_enabled = False
+    audio._enqueue(b"\x10\x00" * BLOCK_SIZE)
+
+    class Session:
+        async def send_audio(self, data):
+            assert data == bytes(BLOCK_SIZE * 2)
+            raise RuntimeError("checked")
+
+    with pytest.raises(RuntimeError, match="checked"):
+        await audio.send_microphone(Session())
+
+
 async def test_headphone_mode_keeps_barge_in_available_during_playback():
     audio = AudioIO(allow_barge_in=True)
     audio._loop = ImmediateLoop()
