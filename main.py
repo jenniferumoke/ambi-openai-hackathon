@@ -185,7 +185,7 @@ class ComputerWorker:
 
 
 def create_voice_runner(worker, settings, *, model=None, hands_free=True, exit_requested=None, proactive=False,
-                        memory=None, demo_profile=None):
+                        memory=None, demo_profile=None, voice_style=None):
     """Configure the Realtime agent and the tools that connect it to the worker."""
     @function_tool
     async def use_computer(task: str) -> str:
@@ -248,6 +248,8 @@ def create_voice_runner(worker, settings, *, model=None, hands_free=True, exit_r
         from voice_realtime import SpeechConfirmedRealtimeModel
 
         model = SpeechConfirmedRealtimeModel()
+    if voice_style is not None and hasattr(model, "configure_voice_style"):
+        model.configure_voice_style(voice_style, instructions)
     return RealtimeRunner(agent, model=model, config={
         "tracing_disabled": True,
         "async_tool_calls": True,
@@ -421,6 +423,9 @@ async def run_voice(worker, settings, args, observation_settings=None, screen_se
     exit_requested = asyncio.Event()
     proactive = getattr(args, "proactive", False)
     runner_options = {"memory": memory} if memory is not None else {}
+    if runtime is not None:
+        from voice_style import style_for_camera
+        runner_options["voice_style"] = lambda: style_for_camera(runtime.camera.latest)
     if runtime is not None and getattr(runtime, "demo_profile", None) is not None:
         runner_options["demo_profile"] = runtime.demo_profile
     runner = create_voice_runner(worker, settings, hands_free=hands_free, exit_requested=exit_requested,

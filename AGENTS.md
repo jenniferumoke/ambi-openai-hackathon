@@ -11,10 +11,12 @@ its markup, CSS, and local component state.
 - `server.py` defines HTTP routes, WebSocket transport, token checks, origin
   checks, and the server lifecycle.
 - `app_runtime.py` owns voice session state and the `/api/state` snapshot.
+- `voice_style.py` maps fresh current camera cues to per-reply delivery;
+  `voice_realtime.py` applies the instructions and local speech attenuation.
 - `ambient.py` defines `CuePacket`, live camera state, and proactive Decisions
   gating. `cue_store.py` defines the durable cue journal.
 - `memory_store.py` defines durable user memory and its validation.
-- `eval/test/ellis.json` and `eval/test/demo.py` define the opt-in fictional Ellis
+- `eval/test/ellis.json` and `eval/test/demo.py` define the default fictional Ellis
   demo profile, isolated workspace, and explicit cue-to-offer catalog.
 - `observation_hub.py` defines the live camera and computer observation shape;
   `screen_observer.py` defines the tentative computer observation payload.
@@ -35,6 +37,9 @@ design. There is no account or multi-user API.
 - Install `uv`, Python 3.12, and Node.js 22 or newer. From the repository root,
   `./scripts/start.sh` syncs locked Python dependencies, installs UI packages if
   needed, builds the test UI, and starts `server.py --open` on port 8765.
+  This defaults to the Ellis profile with automatic voice startup. Add
+  `--no-demo` for ordinary memory and normal Decisions behavior, or
+  `--no-autostart` to load Ellis and wait for Start session.
 - Put `OPENAI_API_KEY` in the ignored root `.env` for voice, Decisions, and
   computer work. Do not expose it to a browser. Camera cues and local memory
   can work without it. `.env.example` lists configuration knobs.
@@ -116,7 +121,7 @@ read the next snapshot.
 | --- | --- | --- |
 | `GET bootstrap` | None | Token, key-present flag, permissions, full state. No token required. |
 | `GET state` | None | Full live snapshot. |
-| `GET cues` | `limit=1..100`, default 50 | `{schema_version:1,current,events}`; see camera section. |
+| `GET cues` | `limit=1..100`, default 50 | `{schema_version:2,current,events}`; see camera section. |
 | `POST start` | `{ "observe_screen": true }` | Starts voice asynchronously. Screen observation defaults on but requires macOS permission. Requires `OPENAI_API_KEY`; missing key returns 400. A repeated start while one is active is a no-op. |
 | `POST stop` | `{}` | Ends voice, observer, and computer work; clears live camera state. Watch for `idle`. |
 | `POST stop-task` | `{}` | Stops an active computer task; earlier desktop actions are not undone. No-op when none runs. |
@@ -143,7 +148,7 @@ unknown observation payloads defensively. The stable top-level shape is:
 
 ```ts
 type CueName =
-  | 'smiling' | 'frowning' | 'furrowed_brow' | 'tense_expression'
+  | 'neutral' | 'smiling' | 'frowning' | 'furrowed_brow' | 'tense_expression'
   | 'confused_look' | 'concentrating_look' | 'irritated_look'
   | 'tired_look' | 'sleepy_look';
 
@@ -231,8 +236,8 @@ type CuePacket = {
   stream_id: string;       // 1–64 chars; new ID per page load/camera stream
   sequence: number;        // integer >= 0; strictly increasing per stream
   usable: boolean;
-  cues: CueName[];         // max 9; [] when no stable cue
-  scores: Partial<Record<CueName, number>>; // max 9 keys; finite 0..1 strengths
+  cues: CueName[];         // max 10; [] when no stable cue; neutral must stand alone
+  scores: Partial<Record<CueName, number>>; // max 10 keys; finite 0..1 strengths
   age_ms: number;          // 0..1500, frame age at send time
   inference_ms: number;    // 0..5000
   detection_ms: number;    // 0..600000; time to stable cue
@@ -256,14 +261,23 @@ corroborated brow asymmetry or combined inner-brow lift and lowering. A plain
 furrow alone does not imply a composite look. See the detector rule table in
 `docs/camera-cues-api.md` for the heuristic thresholds and validation limits.
 
+`neutral` requires three supporting frames and 600 ms of low measured brow,
+eye, mouth/jaw, and nose movement (tracked coefficients ≤0.25). Missing or
+invalid blendshapes are not neutral evidence; gaze direction is excluded.
+Neutral has no lower release threshold: movement clears it immediately. It
+cannot coexist with other active cues, and it replaces any recent expression
+episode without initiating an offer in normal or Ellis demo mode.
+
 `POST /api/camera` returns `accepted` for a fresh packet and `stored` only when
 the usable flag or cue set changed; `event_id` is an integer or `null`.
 Repeated scores update `state.camera` without adding rows. The separate
 `data/ambi_cues.sqlite3` journal persists cue changes across server restarts,
 stores no images/audio, and is pruned to 24 hours and 500 events. The journal
 is not user memory. `POST /api/camera-off` clears live state but does not erase
-history. The five `*_look` cues are display-only; only the original movement
-cues can initiate a proactive Decisions check. None of these labels establishes
+history. In normal mode the five `*_look` cues cannot initiate proactive offers;
+they can shape delivery of an already-requested reply. Only the original movement
+cues can initiate a proactive Decisions check. `neutral` never initiates offers
+and resets voice delivery to its default. None of these labels establishes
 emotion, concentration, or alertness.
 
 `GET /api/cues?limit=50` returns:
@@ -279,7 +293,7 @@ type CueEvent = {
   usable: boolean; cues: CueName[]; scores: Partial<Record<CueName, number>>;
   inference_ms: number; detection_ms: number;
 };
-type CueHistory = { schema_version: 1; current: CueCurrent | null; events: CueEvent[] };
+type CueHistory = { schema_version: 2; current: CueCurrent | null; events: CueEvent[] };
 ```
 
 `current`
@@ -288,8 +302,11 @@ when the camera is off, the server restarts, or no packet arrived for two
 seconds. Here `age_ms` is elapsed time since backend receipt, not the packet's
 original frame age. `events` is newest first; each row has integer `id`, `stream_id`,
 `sequence`, ISO UTC `observed_at` and `received_at`, `usable`, `cues`, `scores`,
-`inference_ms`, and `detection_ms`. A neutral transition is `cues:[]`; an
-unusable transition has `usable:false`. `scores` in an event are a snapshot at
+`inference_ms`, and `detection_ms`. A confirmed neutral transition is
+`cues:['neutral']`; `cues:[]` means no stable classified cue (and remains accepted
+from older producers). An unusable transition has `usable:false`. Schema 2
+extends the cue enum and score keys to include `neutral`; existing journal rows
+remain readable and are not relabeled. `scores` in an event are a snapshot at
 that transition, not a per-frame time series. See `docs/camera-cues-api.md` for
 copyable requests and responses.
 
@@ -330,17 +347,40 @@ the user must explicitly accept it or make a direct request. `stop-task` cancels
 future worker actions but cannot undo actions already performed. A successful
 computer report can be saved as `kind:"result"` memory.
 
-### Explicit Ellis demo mode
+Voice delivery adapts in normal and Ellis demo sessions at each actual response
+send boundary, after any queue wait. Fresh current `smiling` selects playful,
+upbeat delivery; `tired_look`/`sleepy_look` select calm, soothing, slower delivery
+with output PCM amplitude reduced to 78% for that reply. Frown/brow/tension,
+confused, and irritated cues select a patient, supportive tone. Tired cues take
+priority over supportive cues, then smiling. Neutral, empty cues, an unusable
+face, camera-off, or packets at least two seconds old select the default warm
+voice. Only stable cue names affect delivery, not high scores alone or retained
+observation episodes. A cue never requests speech, changes tool permissions, or
+sets system volume. The configured voice identity remains unchanged.
 
-`./scripts/start.sh --demo ellis` (or `server.py --demo ellis --open`) creates a
+The delivery suffix preserves the full session instructions for regular replies
+and the existing restricted instructions for greeting/proactive/demo replies.
+It tells the model to honor explicit user tone preferences and the seriousness
+of the request. Tone is a tentative presentation hint, not a mood assertion or
+memory entry. Response metadata binds local attenuation to the whole reply;
+both native and fallback playback receive the same samples without changing
+duration or interruption offsets. Tests cover transport and PCM behavior;
+naturalness and prompt adherence still require listening to live replies.
+
+### Default Ellis demo mode
+
+`./scripts/start.sh` (or `server.py --open`) defaults to Ellis and creates a
 fresh ignored `data/demo/ellis/<run-id>/` with Ellis memory, cue history, and an
 editable PairMatch copy. It preloads the full fictional profile and action
 catalog into voice system context and automatically starts voice; use
-`--no-autostart` to retain the Start session button flow. The normal launcher
-does not load this profile. `observations.mode` is `ellis_demo`; HTTP/WS shapes,
+`--no-autostart` to retain the Start session button flow. Use `--no-demo` for
+ordinary saved memory and normal Decisions behavior; `--demo ellis` is an
+explicit alias for the default. The lower-level `create_app()` factory and
+benchmark profile launcher retain their explicit non-demo configuration.
+`observations.mode` is `ellis_demo`; HTTP/WS shapes,
 authentication, and cue schema version remain unchanged.
 
-Only this explicit mode replaces Decisions classification with deterministic
+Only Ellis mode replaces Decisions classification with deterministic
 profile rules. A smile offers Happy in Brave; tired/sleepy look cues offer
 Dark Mode plus Night Shift; brow/confused/frown/tension cues offer PM-17 help
 grounded in the saved task. The catalog also includes confirmed local mood
@@ -349,7 +389,8 @@ or proof of internal state. There is a five-second startup wait, six-second
 cooldown, twelve-second suggestion expiry, and at most one offer per category
 per voice session. A current usable cue is required at the voice-send boundary;
 focus, user/response/audio/computer activity, and a pending suggestion suppress
-new offers. Normal mode retains the display-only look cues and 45-second cooldown.
+new offers. Normal mode retains the 45-second cooldown; look cues can shape voice
+delivery but do not initiate offers there.
 
 Opening and proactive turns disable tools. The usual `accept` route or an
 explicit spoken/typed agreement authorizes only the offered task. Code

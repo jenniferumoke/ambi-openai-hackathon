@@ -17,13 +17,14 @@ reminders integration. It is built for one user on one Mac.
 
 ## Start the demo
 
-For the **one-minute Ellis developer roleplay**, run
-`./scripts/start.sh --demo ellis`. It preloads the fictional profile, starts
+The **one-minute Ellis developer roleplay is the default**. Run
+`./scripts/start.sh`. It preloads the fictional profile, starts
 voice automatically, and uses an explicit cue/action catalog with a shorter
 cooldown. Turn on Camera cues in the browser. See
 [the Ellis demo guide](eval/test/README.md) for the mapping and timed script.
 Each launch uses separate demo memory and a disposable PairMatch workspace.
-The normal session below retains the standard Decisions policy.
+Use `./scripts/start.sh --no-demo` for ordinary saved memory and the standard
+Decisions policy, or add `--no-autostart` to load Ellis and wait for Start session.
 
 From the repository root, create a local API-key file, then start the app:
 
@@ -36,8 +37,8 @@ uv run python server.py --open
 ```
 
 The last command starts Python and opens <http://127.0.0.1:8765>.
-Click **Start session**: Ambi speaks first using saved context, without a voice
-prompt. Camera detection has its own switch. Use Chrome for the demo. Keep
+Voice starts automatically: Ambi speaks first using Ellis's saved context,
+without a voice prompt. Camera detection has its own switch. Use Chrome for the demo. Keep
 Terminal running; **Control+C** shuts down the server.
 
 For a fresh checkout, install [uv](https://docs.astral.sh/uv/getting-started/installation/)
@@ -71,7 +72,10 @@ local camera can be tried without desktop access. The UI reports missing desktop
 permissions and disables computer control. Run `uv run python main.py --check`
 for a device/permission report.
 
-## Two-minute walkthrough
+## Two-minute walkthrough of normal mode
+
+Launch with `./scripts/start.sh --no-demo` for this walkthrough. For the default
+Ellis session, use the [one-minute rehearsal](eval/test/README.md#rehearse-the-minute).
 
 1. Add a task or note with **+**. The initial task is the real hackathon brief.
    Email excerpts can be pasted; no inbox is connected.
@@ -90,11 +94,22 @@ for a device/permission report.
 Cue scores are facial geometry, not emotion probabilities. The five look labels
 describe visible combinations such as a raised brow with narrowed eyes, a
 yawn-like movement, or prolonged eye closure; they cannot establish confusion,
-concentration, irritation, tiredness, or sleepiness. They are display-only and
-do not initiate proactive offers. The classifier can correctly choose to stay
+concentration, irritation, tiredness, or sleepiness. In normal mode they do not
+initiate proactive offers. The classifier can correctly choose to stay
 quiet; a smile alone does not prove work is finished.
 
+Voice delivery adapts to fresh cues when each reply starts: smiles select a
+playful, upbeat tone; tired/sleepy cues select calm, soothing delivery with
+slightly quieter playback; brow/frown/confused cues select patient reassurance.
+Neutral or unavailable camera cues restore the default voice on the next reply.
+These hints change delivery, never trigger speech or computer actions, and do
+not change the Mac's volume. Explicit tone requests take precedence in the prompt.
+
 ## Architecture
+
+This diagram shows normal mode (`--no-demo`). The default Ellis demo replaces
+Decisions selection with its stored cue/action catalog and keeps confirmation
+before actions.
 
 ```mermaid
 flowchart LR

@@ -13,9 +13,19 @@ const CONFIG = {
   // path. Separate timers prevent switching paths from borrowing a shorter hold.
   wide_yawn: { cue: 'tired_look', threshold: .72, holdMs: 1200 },
   sleepy_look: { threshold: .7, holdMs: 700 },
+  neutral: { threshold: .75, releaseThreshold: .75, holdMs: 600 },
 };
 const MAX_FRAME_GAP_MS = 500;
 const MAX_THRESHOLD_DIP_MS = 150;
+// Check raw movement as well as classified cues: a wink, raised brow, or speech
+// may not match another label, but is not a neutral expression. Gaze is excluded.
+const NEUTRAL_BLENDSHAPES = [
+  'browDownLeft', 'browDownRight', 'browInnerUp', 'browOuterUpLeft', 'browOuterUpRight',
+  'eyeBlinkLeft', 'eyeBlinkRight', 'eyeSquintLeft', 'eyeSquintRight', 'eyeWideLeft', 'eyeWideRight',
+  'jawOpen', 'mouthSmileLeft', 'mouthSmileRight', 'mouthFrownLeft', 'mouthFrownRight',
+  'mouthPressLeft', 'mouthPressRight', 'mouthPucker', 'mouthFunnel',
+  'mouthStretchLeft', 'mouthStretchRight', 'noseSneerLeft', 'noseSneerRight',
+];
 
 function patternStrengths(scores, confirmedYawn) {
   const val = name => Number.isFinite(scores[name]) ? Math.max(0, Math.min(1, scores[name])) : 0;
@@ -71,6 +81,9 @@ function patternStrengths(scores, confirmedYawn) {
     wide_yawn: wideYawn,
     // Closed eyes during yawning or laughing should not add a second label.
     sleepy_look: quietMouth ? blink : 0,
+    // Missing/invalid model output is unknown, never evidence of neutrality.
+    neutral: NEUTRAL_BLENDSHAPES.every(name => Number.isFinite(scores[name]) && scores[name] >= 0 && scores[name] <= 1)
+      ? 1 - Math.max(...NEUTRAL_BLENDSHAPES.map(val)) : 0,
   };
 }
 
@@ -89,13 +102,14 @@ export class CueFilter {
       this.evidence.tired_look?.active || this.evidence.wide_yawn?.active);
     const active = new Map();
     const cueScores = {};
-    for (const [pattern, { cue = pattern, threshold, holdMs }] of Object.entries(CONFIG)) {
-      const strength = strengths[pattern];
+    for (const [pattern, { cue = pattern, threshold, releaseThreshold = threshold * .65, holdMs }] of Object.entries(CONFIG)) {
+      // Neutral is evaluated last and cannot coexist with a held expression.
+      const strength = pattern === 'neutral' && active.size ? 0 : strengths[pattern];
       cueScores[cue] = Math.max(cueScores[cue] ?? 0, strength);
       let evidence = this.evidence[pattern];
       // Neutral frames immediately break continuity. Brief near-threshold dips
       // preserve a candidate, but never turn weak evidence into an activation.
-      if (strength < threshold * .65) {
+      if (strength < releaseThreshold) {
         delete this.evidence[pattern];
         continue;
       }

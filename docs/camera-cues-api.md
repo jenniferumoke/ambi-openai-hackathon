@@ -34,9 +34,9 @@ const { current, events } = await response.json();
 `POST /api/camera` accepts one validated packet. `stream_id` should be a new ID
 for each browser page load or camera stream; `sequence` must increase within that
 stream. Run one active camera producer at a time; a new stream replaces the
-server's live camera state. All nine cue names are supported:
+server's live camera state. All ten cue names are supported:
 
-`smiling`, `frowning`, `furrowed_brow`, `tense_expression`, `confused_look`,
+`neutral`, `smiling`, `frowning`, `furrowed_brow`, `tense_expression`, `confused_look`,
 `concentrating_look`, `irritated_look`, `tired_look`, `sleepy_look`.
 
 ```js
@@ -57,13 +57,19 @@ journal), and `event_id` (integer or `null`). Repeated frames with the same cue
 set update the live state but do not add journal rows. An unusable frame must
 have empty `cues` and `scores`. `POST /api/camera-off` clears the live state.
 
+`neutral` is a stable visible pattern and must appear alone in `cues`; combining
+it with another cue returns 400. Its 0–1 strength can appear in `scores` alongside
+the other nine strengths. `cues:[]` means no stable classified cue, not confirmed
+neutrality; older producers may continue sending it. Neither means the face is
+unusable, which is represented separately by `usable:false`.
+
 ## Read live and stored cues
 
 `GET /api/cues?limit=50` returns:
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "current": {
     "usable": true,
     "cues": ["confused_look"],
@@ -98,18 +104,54 @@ The journal is `data/ambi_cues.sqlite3`, separate from the user's saved memory.
 It keeps at most 500 cue changes and deletes records older than 24 hours. It
 stores no images or audio. Scores are visual signal strengths, not confidence
 that a person feels or thinks a certain way. In normal mode, the five new look
-patterns do not initiate proactive offers.
+patterns do not initiate proactive offers. Neutral never initiates an offer in
+either mode and clears earlier expression evidence when received.
 
-## Opt-in Ellis demo policy
+## Voice delivery from cues
 
-Launch `./scripts/start.sh --demo ellis` for the one-minute fictional developer
+In both modes, Python samples the latest usable camera packet when a reply is
+actually sent, including replies queued behind another response. Delivery uses
+only current stable cue names and ignores packets received two or more seconds
+ago. The request and snapshot shapes remain unchanged.
+
+| Current cue | Delivery for the next reply |
+| --- | --- |
+| `smiling` | Playful, fun, upbeat intonation at normal playback level. |
+| `tired_look`, `sleepy_look` | Calm, soothing, slightly slower and quieter; local PCM amplitude is 78% of normal. |
+| `frowning`, `furrowed_brow`, `tense_expression`, `confused_look`, `irritated_look` | Patient, steady, reassuring delivery with clear steps. |
+| `neutral`, no stable cue, unavailable/stale camera, or other cues | Default warm conversational delivery at normal playback level. |
+
+Tired cues take priority over supportive cues, then smiles. The selected delivery
+is held for the reply; the next reply rechecks the camera. This does not generate
+speech on its own or change action permissions. Explicit user tone preferences
+and the seriousness of a request take precedence in the delivery prompt. The
+model is told not to announce inferred emotions or the adaptation.
+
+Implementation uses [Realtime per-response instructions](https://developers.openai.com/api/reference/resources/realtime/client-events#response.create)
+and [voice prompting guidance](https://developers.openai.com/api/docs/guides/voice-prompting).
+The configured voice identity and macOS system volume stay the same. Attenuation
+is applied to this app's generated PCM before either playback backend, preserving
+sample count and timing. Automated tests check selection, prompts, permissions,
+and sample amplitude; live listening is needed to assess prosody and naturalness.
+
+Schema 2 adds the `neutral` cue and allows ten score keys, replacing the former
+empty-list representation of a confirmed neutral expression. Update clients with
+exhaustive cue enums. Existing journal events and older packets remain valid;
+historical empty cue lists are not retroactively labeled neutral. The camera
+fields in `/api/state` and `/ws` use the same extended enum.
+
+## Default Ellis demo policy
+
+Launch `./scripts/start.sh` for the default one-minute fictional developer
 roleplay. Voice starts automatically with Ellis's saved context; add
-`--no-autostart` to wait for Start session. Camera permission and the browser's
+`--no-autostart` to wait for Start session. Use `--no-demo` for ordinary saved
+memory and the normal Decisions policy; `--demo ellis` still explicitly selects
+the default. Camera permission and the browser's
 Camera cues switch are still required. This mode uses separate memory/cue
 databases and a disposable code workspace under `data/demo/ellis/<run-id>/`.
 
-The camera packet, history schema (`schema_version: 1`), suggestion shape, and
-accept/dismiss routes are unchanged. `state.observations.mode` is `ellis_demo`.
+The camera packet, history schema (`schema_version: 2`), suggestion shape, and
+accept/dismiss routes are the same as normal mode. `state.observations.mode` is `ellis_demo`.
 Any configured frontend can send the same real detector packets. Demo rules
 read the current usable cues and map them to the profile's first stored action:
 
@@ -119,8 +161,8 @@ read the current usable cues and map them to the profile's first stored action:
 | `tired_look`, `sleepy_look` | Switch macOS to Dark Mode and enable Night Shift. |
 | `furrowed_brow`, `confused_look`, `frowning`, `tense_expression` | Inspect the saved PairMatch PM-17 issue and explain the next step. |
 
-`concentrating_look` and `irritated_look` alone do not trigger a demo offer.
-This explicit demo policy uses deterministic catalog selection rather than
+`neutral`, `concentrating_look`, and `irritated_look` do not trigger a demo offer.
+This demo policy uses deterministic catalog selection rather than
 Decisions; cues are not verified emotions. Alternate actions, including a
 self-reported local mood note and Magic Mike ticket planning, are preloaded
 into voice context. A five-second warmup, six-second cooldown, twelve-second
@@ -137,14 +179,15 @@ offer authorizes inspection before any separately approved edit. See
 
 ## Local detector rules
 
-`ui/src/cue-filter.js` maps the worker's MediaPipe blendshapes to the nine public
+`ui/src/cue-filter.js` maps the worker's MediaPipe blendshapes to the ten public
 cues. These rules are application heuristics; MediaPipe produces facial movement
 coefficients, not these look labels (see its [blendshape model card](https://storage.googleapis.com/mediapipe-assets/Model%20Card%20Blendshape%20V2.pdf)).
 Scores remain 0–1 signal strengths, including while a pattern is waiting for its
-hold time. The HTTP packet and history schema are unchanged.
+hold time.
 
 | Cue | Visible evidence and minimum hold |
 | --- | --- |
+| `neutral` | All tracked brow, eye, mouth/jaw, and nose movement coefficients ≤0.25 for 600 ms; three supporting frames and no other active cue. |
 | `smiling` | Average mouth-corner lift ≥0.45; three supporting frames. |
 | `frowning` | Average mouth-corner lowering ≥0.35; three supporting frames; suppressed by a smile or yawn-like posture. |
 | `furrowed_brow` | Both brow-lowering scores ≥0.28; three supporting frames. One lowered brow alone is insufficient. Suppressed during a yawn-like posture. |
@@ -164,14 +207,18 @@ there is no extra public yawn cue. Once confirmed, a yawn continues while the
 eyes reopen if the jaw stays open (≥0.55), retaining the initial detection time.
 
 Every pattern requires at least three supporting frames. Timing uses elapsed
-milliseconds rather than a fixed frame rate. Pending evidence tolerates dips
+milliseconds rather than a fixed frame rate. Neutral requires complete, finite
+scores for the tracked movements; its strength is one minus their maximum.
+Gaze direction is excluded. Neutral clears as soon as movement exceeds its
+threshold, without hysteresis, and never coexists with an active expression.
+For the other cues, pending evidence tolerates dips
 below entry strength for up to 150 ms, provided it stays at least 65% of the
 entry threshold. Active cues use that lower threshold to avoid flicker; a
 neutral frame clears them immediately. Face loss, multiple faces, an explicit
 reset, or a frame gap over 500 ms clears all evidence. Old timestamps are ignored.
 
 The automated tests replay synthetic blendshape sequences for yawns, speech-like
-mouth movement, blinks, brow patterns, overlapping expressions, jitter, and
+mouth movement, blinks, brow patterns, neutral transitions, missing model output, overlapping expressions, jitter, and
 different frame rates. They verify rule behavior, not measured accuracy on
 people. Sustained open-mouth speech can still resemble a yawn, and lighting,
 pose, and individual facial movement can change the model's scores. Validate

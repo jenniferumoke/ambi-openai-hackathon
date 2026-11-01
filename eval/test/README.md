@@ -12,10 +12,10 @@ as Ellis; no introductory prompt is needed.
 From the repository root in Terminal:
 
 ```sh
-./scripts/start.sh --demo ellis
+./scripts/start.sh
 ```
 
-This builds the demo UI, opens Ambi, and automatically starts the voice session.
+Ellis is the default. This builds the demo UI, opens Ambi, and automatically starts the voice session.
 Ambi welcomes Ellis with the saved PM-17 context. Turn on **Camera cues** in the
 browser and allow camera access. Use good light with one face visible. The
 backend remains `http://127.0.0.1:8765`; another local frontend can use the same
@@ -26,11 +26,12 @@ demo's coding offer.
 If the UI is already built, the shorter command is:
 
 ```sh
-uv run python server.py --demo ellis --open
+uv run python server.py --open
 ```
 
-Add `--no-autostart` to wait for **Start session** instead. The usual launch
-without `--demo ellis` keeps the normal Decisions policy and 45-second cooldown.
+Add `--no-autostart` to wait for **Start session** instead. Use `--no-demo` for
+ordinary saved memory, the normal Decisions policy, and its 45-second cooldown.
+`--demo ellis` remains supported as an explicit selection of the default.
 The demo creates a new ignored `data/demo/ellis/<run-id>/` containing isolated
 memory, cue history, and an editable copy of `bench/fixtures/code`. Its workspace
 path prints in Terminal. Open that copy's `exercise.py` and
@@ -53,7 +54,7 @@ missing key in the UI and still exposes the profile and local camera features.
 
 The `happy`, `tired`, and `unsure` keys are demo scenario names, not emotional
 diagnoses. Numeric camera cues still come from the existing local detector.
-This explicit demo uses deterministic catalog selection instead of the
+This demo uses deterministic catalog selection instead of the
 Decisions classifier; it is a rehearsal of personalized offers, not an
 evaluation of emotion recognition.
 

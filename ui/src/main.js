@@ -36,7 +36,7 @@ function cameraStatus(status, message) {
   if (status === 'error') toast(message);
 }
 function updateCues(signal) {
-  for (const cue of ['smiling', 'furrowed_brow', 'frowning', 'confused_look',
+  for (const cue of ['neutral', 'smiling', 'furrowed_brow', 'frowning', 'confused_look',
                      'concentrating_look', 'irritated_look', 'tired_look', 'sleepy_look']) {
     const score = signal?.usable ? Math.round((signal.scores[cue] || 0) * 100) : null;
     $('#meter-' + cue).style.width = `${score || 0}%`;
@@ -44,7 +44,9 @@ function updateCues(signal) {
     $('#meter-' + cue).closest('.cue').classList.toggle('active', Boolean(signal?.cues?.includes(cue)));
   }
   $('#camera-latency').textContent = signal ? `${Math.round(signal.inference_ms)} ms / frame` : '—';
-  if (signal) $('#camera-status').textContent = signal.usable ? (signal.cues.length ? 'A brief cue, noticed' : 'One face · processing locally') : 'Keep one face clearly in view';
+  if (signal) $('#camera-status').textContent = !signal.usable ? 'Keep one face clearly in view'
+    : signal.cues.includes('neutral') ? 'Neutral expression · processing locally'
+    : signal.cues.length ? 'A brief cue, noticed' : 'One face · processing locally';
 }
 async function flushSignal() {
   if (sendingSignal || !pendingSignal || !serverReady || !cameraEnabled) return;
@@ -63,11 +65,11 @@ async function flushSignal() {
 const camera = new Camera($('#camera-video'), signal => {
   updateCues(signal);
   const cues = signal.cues.join(',');
-  const onset = cues && cues !== lastCues;
+  const onset = signal.cues.some(cue => cue !== 'neutral') && cues !== lastCues;
   lastCues = cues;
   // Keep a short positive event while a request is in flight. A neutral frame
   // may replace it after delivery; a missing face always clears it.
-  if (!signal.usable || onset || !pendingSignal?.cues?.length) pendingSignal = signal;
+  if (!signal.usable || onset || !pendingSignal?.cues?.some(cue => cue !== 'neutral')) pendingSignal = signal;
   if (onset || !signal.usable || performance.now() - lastSignalSent > 250) flushSignal();
 }, cameraStatus);
 

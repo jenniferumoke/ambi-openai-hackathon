@@ -1,4 +1,4 @@
-"""Opt-in fictional Ellis rehearsal. Rules propose; only the user authorizes work."""
+"""Default fictional Ellis rehearsal. Rules propose; only the user authorizes work."""
 from __future__ import annotations
 
 import asyncio

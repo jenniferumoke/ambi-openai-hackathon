@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from typing import Literal
 
 Cue = Literal[
-    "smiling", "frowning", "furrowed_brow", "tense_expression",
+    "neutral", "smiling", "frowning", "furrowed_brow", "tense_expression",
     "confused_look", "concentrating_look", "irritated_look", "tired_look", "sleepy_look",
 ]
 ALLOWED_CUES = set(Cue.__args__)
@@ -41,6 +41,8 @@ class CuePacket(BaseModel):
     def validate_unusable_frame(self):
         if not self.usable and (self.cues or self.scores):
             raise ValueError("An unusable camera frame cannot contain cues or scores")
+        if "neutral" in self.cues and set(self.cues) != {"neutral"}:
+            raise ValueError("Neutral cannot be combined with other cues")
         return self
 
 
@@ -79,7 +81,10 @@ class FastCamera:
             return True
         current = tuple(sorted(set(packet.cues)))
         if current and current != self.active:
-            self.recent, self.cue_at, self.episode = current, now - packet.age_ms / 1000, uuid4().hex
+            self.recent, self.cue_at = current, now - packet.age_ms / 1000
+            # Confirmed neutrality replaces earlier expression evidence without
+            # creating an episode that could initiate a proactive offer.
+            self.episode = None if current == ("neutral",) else uuid4().hex
         self.active = current
         # Remember a brief event while the face relaxes; never require holding it
         # through an API call. Missing faces clear it immediately.

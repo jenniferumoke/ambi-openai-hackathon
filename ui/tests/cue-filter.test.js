@@ -2,6 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CueFilter } from '../src/cue-filter.js';
 const smile = { mouthSmileLeft: .8, mouthSmileRight: .9 };
+const neutral = {
+  browDownLeft: .05, browDownRight: .05, browInnerUp: .04, browOuterUpLeft: .04, browOuterUpRight: .04,
+  eyeBlinkLeft: .08, eyeBlinkRight: .08, eyeSquintLeft: .08, eyeSquintRight: .08,
+  eyeWideLeft: .06, eyeWideRight: .06, jawOpen: .06,
+  mouthSmileLeft: .07, mouthSmileRight: .07, mouthFrownLeft: .03, mouthFrownRight: .03,
+  mouthPressLeft: .05, mouthPressRight: .05, mouthPucker: .02, mouthFunnel: .02,
+  mouthStretchLeft: .04, mouthStretchRight: .04, noseSneerLeft: .03, noseSneerRight: .03,
+};
 test('brief expression is detected in 134 ms and resets on neutral', () => {
   const filter = new CueFilter();
   filter.update({}, 0);
@@ -247,13 +255,71 @@ test('face loss, multiple faces, explicit reset, and frame gaps clear yawn evide
   }
 });
 
-test('output keeps the nine public cue names and finite scores; invalid values cannot create cues', () => {
+test('output keeps the ten public cue names and finite scores; invalid values cannot create cues', () => {
   const invalid = { jawOpen: Infinity, eyeBlinkLeft: NaN, eyeBlinkRight: .9, browDownLeft: '1', browDownRight: 1 };
   const result = hold(new CueFilter(), invalid, 0, 2000);
   assert.deepEqual(result.cues, []);
   assert.deepEqual(Object.keys(result.scores).sort(), [
-    'smiling', 'frowning', 'furrowed_brow', 'tense_expression', 'confused_look',
+    'neutral', 'smiling', 'frowning', 'furrowed_brow', 'tense_expression', 'confused_look',
     'concentrating_look', 'irritated_look', 'tired_look', 'sleepy_look',
   ].sort());
   assert.ok(Object.values(result.scores).every(score => Number.isFinite(score) && score >= 0 && score <= 1));
+});
+
+test('neutral requires sustained measured low movement, then clears as a smile begins', () => {
+  const filter = new CueFilter();
+  assert.deepEqual(hold(filter, neutral, 0, 550).cues, []);
+  const result = filter.update(neutral, 600);
+  assert.deepEqual(result.cues, ['neutral']);
+  assert.equal(result.detection_ms, 600);
+  assert.ok(result.scores.neutral >= .75);
+  assert.deepEqual(filter.update({ ...neutral, ...smile }, 650).cues, []);
+  assert.deepEqual(hold(filter, { ...neutral, ...smile }, 700, 100).cues, ['smiling']);
+  assert.deepEqual(hold(filter, neutral, 850, 550).cues, []);
+  assert.deepEqual(filter.update(neutral, 1450).cues, ['neutral']);
+});
+
+test('unclassified movements and pending yawns are not neutral', () => {
+  for (const movement of [
+    { browDownLeft: .9 }, { browOuterUpLeft: .8 }, { browInnerUp: .8 },
+    { eyeBlinkLeft: .9 }, { eyeSquintRight: .7 }, { eyeWideLeft: .8, eyeWideRight: .8 },
+    { jawOpen: .85 }, { mouthPucker: .8 }, { mouthFunnel: .8 }, { mouthStretchLeft: .8 },
+  ]) {
+    const filter = new CueFilter();
+    hold(filter, neutral, 0, 600);
+    for (let at = 650; at <= 2000; at += 50) {
+      assert.equal(filter.update({ ...neutral, ...movement }, at).cues.includes('neutral'), false);
+    }
+  }
+});
+
+test('neutral cannot overlap an expression retained by hysteresis', () => {
+  const filter = new CueFilter();
+  hold(filter, { ...neutral, browDownLeft: .5, browDownRight: .5 }, 0, 200);
+  const result = hold(filter, { ...neutral, browDownLeft: .22, browDownRight: .22 }, 250, 1000);
+  assert.deepEqual(result.cues, ['furrowed_brow']);
+  assert.equal(result.scores.neutral, 0);
+  assert.deepEqual(hold(filter, neutral, 1300, 600).cues, ['neutral']);
+});
+
+test('missing or invalid blendshapes are unknown, not neutral', () => {
+  for (const scores of [{}, { _neutral: 1 }, ...[undefined, NaN, Infinity, -1, 2, '0'].map(
+    jawOpen => ({ ...neutral, jawOpen }),
+  )]) {
+    const result = hold(new CueFilter(), scores, 0, 2000);
+    assert.equal(result.cues.includes('neutral'), false);
+    assert.equal(result.scores.neutral, 0);
+  }
+});
+
+test('neutral resets on face loss, multiple faces, and long frame gaps', () => {
+  const filter = new CueFilter();
+  for (const count of [0, 2]) {
+    filter.reset();
+    assert.deepEqual(hold(filter, neutral, 0, 600).cues, ['neutral']);
+    assert.deepEqual(filter.update(neutral, 650, count), { cues: [], scores: {}, usable: false, detection_ms: 0 });
+    assert.deepEqual(hold(filter, neutral, 700, 550).cues, []);
+    assert.deepEqual(filter.update(neutral, 1300).cues, ['neutral']);
+    assert.deepEqual(filter.update(neutral, 2000).cues, []);
+  }
 });
