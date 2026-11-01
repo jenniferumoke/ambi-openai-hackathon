@@ -33,7 +33,7 @@ The CLI returns nonzero for failures/errors. A failing product scenario is usefu
 
 ## Test the actual app with curated workspaces
 
-In **Workspaces**, choose **Prepare workspace**, then **Open in VS Code**. **Copy task** provides the exact folder and task to give AMBI. Start the actual AMBI app with the team's configured credentials, give it that task, wait for it to save the output, then click **Verify saved result** in AMBI-Bench.
+In **Workspaces**, choose **Prepare workspace**, then **Open in editor**. **Copy task** provides the exact folder and task to give AMBI. Start the actual AMBI app with the team's configured credentials, give it that task, wait for it to save the output, then click **Verify saved result** in AMBI-Bench.
 
 | Scenario | Source files | Required result | Verification |
 | --- | --- | --- | --- |
@@ -41,7 +41,7 @@ In **Workspaces**, choose **Prepare workspace**, then **Open in VS Code**. **Cop
 | Meeting notes | Current note plus superseded draft | `outputs/meeting-brief.md` | Current event facts, sections, decisions, owner/deadline pairs, unknown station count, source hashes unchanged |
 | Coding session | Broken `two_sum`, task README | Repaired `exercise.py` | Eight executable vectors, duplicate/negative/empty inputs, distinct indices, no mutation, unchanged README |
 
-Every preparation makes a fresh copy. All people, bills and addresses are fictional; no payment, sending or deletion is requested. Bills are dated relative to **1 November 2026**, not the day the test is rerun. The source dataset is committed in `bench/fixtures/`; prepared folders and results are ignored. VS Code is optional; any editor can open the generated folder.
+Every preparation makes a fresh copy. All people, bills and addresses are fictional; no payment, sending or deletion is requested. Bills are dated relative to **1 November 2026**, not the day the test is rerun. The source dataset is committed in `bench/fixtures/`; prepared folders and results are ignored. The launcher uses the installed `code` command, which may point to VS Code or Cursor. Any editor can open the generated folder.
 
 This is an **operator-driven app test**: AMBI-Bench does not impersonate AMBI or silently run desktop actions. A passing artifact does not prove which agent created it, that no external side effects occurred, or that the entire voice/camera journey worked. Report who/what produced the artifact in your demo notes. The automated grader tests use reference answers and are not evidence of AMBI task success.
 

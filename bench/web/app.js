@@ -418,9 +418,9 @@ function renderWorkspaces(items) {
                 false,
               );
             }),
-            button("Open in VS Code", async () => {
+            button("Open in editor", async () => {
               await api("open-workspace", { id: item.id });
-              notice("Workspace opened in VS Code.", false);
+              notice("Workspace opened in your configured code editor.", false);
             }),
             button(
               "Verify saved result",
