@@ -53,6 +53,10 @@ class ProactiveRealtimeModel(SpeechConfirmedRealtimeModel):
                 ))
 
     async def send_proactive_response(self, text, send_if):
+        return await self.send_context_response(text, send_if)
+
+    async def send_context_response(self, text, send_if, *, instructions=PROACTIVE_INSTRUCTIONS,
+                                    kind="proactive_observation"):
         async with self._user_input_lock:
             if (not send_if() or self._ongoing_response or self._response_control != "free"
                     or await self._response_create_sequencer.has_pending_response_create()):
@@ -90,8 +94,8 @@ class ProactiveRealtimeModel(SpeechConfirmedRealtimeModel):
                 self._observation_item_id = item_id
                 response = ResponseCreateEvent.model_validate({
                     "type": "response.create", "event_id": event_id,
-                    "response": {"output_modalities": ["audio"], "instructions": PROACTIVE_INSTRUCTIONS,
-                                 "tools": [], "tool_choice": "none", "metadata": {"kind": "proactive_observation"}},
+                    "response": {"output_modalities": ["audio"], "instructions": instructions,
+                                 "tools": [], "tool_choice": "none", "metadata": {"kind": kind}},
                 })
                 committed = await self._send_raw_message_if(response, send_if)
                 if committed:
