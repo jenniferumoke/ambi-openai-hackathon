@@ -1,0 +1,6 @@
+{
+  "fixture": "FICTIONAL BENCHMARK DATA — NOT A REAL BILL",
+  "id": "BILL-103", "supplier": "Willow Equipment Hire", "amount": 28,
+  "currency": "GBP", "due": "2026-10-30", "status": "unpaid",
+  "description": "Fictional equipment hire. No bank or payment details."
+}

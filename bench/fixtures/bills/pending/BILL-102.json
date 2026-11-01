@@ -1,0 +1,6 @@
+{
+  "fixture": "FICTIONAL BENCHMARK DATA — NOT A REAL BILL",
+  "id": "BILL-102", "supplier": "Cedar Print Workshop", "amount": 40,
+  "currency": "GBP", "due": "2026-11-07", "status": "unpaid",
+  "description": "Flyers for a fictional neighbourhood event. No payment details."
+}

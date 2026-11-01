@@ -1,0 +1,6 @@
+{
+  "fixture": "FICTIONAL BENCHMARK DATA — NOT A REAL BILL",
+  "id": "BILL-101", "supplier": "Maple Hall Utilities", "amount": 85,
+  "currency": "GBP", "due": "2026-11-03", "status": "unpaid",
+  "description": "Community room utilities. No bank or payment details are supplied."
+}

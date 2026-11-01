@@ -1,0 +1,6 @@
+{
+  "fixture": "FICTIONAL BENCHMARK DATA — NOT A REAL BILL",
+  "id": "BILL-100", "supplier": "Maple Hall Booking", "amount": 60,
+  "currency": "GBP", "due": "2026-10-28", "status": "paid",
+  "description": "Already settled. Must not be added to the payment queue."
+}
