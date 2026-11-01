@@ -156,6 +156,16 @@ export function createProfileUI({ api, action, notice }) {
           );
         }),
       );
+    } else if (app.running) {
+      actions.append(
+        button("Stop current demo to switch profiles", async () => {
+          await api("profile-stop");
+          notice(
+            "Previous demo stopped. You can now launch this profile.",
+            false,
+          );
+        }),
+      );
     } else
       actions.append(
         button(

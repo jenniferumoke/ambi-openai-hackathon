@@ -192,3 +192,37 @@ def test_all_profiles_have_both_help_and_quiet_scenarios():
     for profile in profiles():
         assert {s["expectation"] for s in profile["scenarios"]} == {"offer", "quiet"}
         assert profile["fictional"] is True
+
+
+def test_team_app_keeps_cue_journals_inside_each_profile(tmp_path):
+    from ambient import CuePacket
+    from server import create_app as create_product_app
+
+    lab = ProfileLab(tmp_path)
+    one, two = lab.prepare("rowan"), lab.prepare("nora")
+    apps = [
+        create_product_app(db_path=Path(item["path"]) / "memory.sqlite3", seed=False)
+        for item in (one, two)
+    ]
+    try:
+        for app, item in zip(apps, (one, two)):
+            assert app.state.cue_store.path.parent == Path(item["path"])
+            assert app.state.memory.get("ambi-project-brief") is None
+        apps[0].state.cue_store.record(
+            CuePacket(
+                stream_id="synthetic",
+                sequence=0,
+                usable=True,
+                cues=["smiling"],
+                scores={},
+                age_ms=0,
+                inference_ms=10,
+                detection_ms=120,
+            )
+        )
+        assert len(apps[0].state.cue_store.list()) == 1
+        assert apps[1].state.cue_store.list() == []
+    finally:
+        for app in apps:
+            app.state.memory.close()
+            app.state.cue_store.close()
