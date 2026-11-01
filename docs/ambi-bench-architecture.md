@@ -42,7 +42,3 @@ Only manifest-listed source files are served in the preview routes. Databases, s
 ## VNC boundary
 
 The same repository and profiles can be loaded on the test machine; the operator then uses its desktop through VNC. No VNC transport has been supplied yet. AMBI's platform support and permissions must be checked on that host. Local validation currently uses macOS. This lab does not add background file watching, real inbox integration or mood inference to AMBI.
-
-## Secondary developer tooling
-
-The original deterministic component checks, baselines and artifact graders remain available under secondary tabs. They are useful debugging tools, not prerequisites for the profile journey. Their design is preserved in [component architecture](ambi-bench-component-architecture.md) and [component checks](../bench/COMPONENT_CHECKS.md).

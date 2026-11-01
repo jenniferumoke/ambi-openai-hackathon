@@ -9,7 +9,7 @@ from agents import set_tracing_disabled
 import uvicorn
 
 from bench.profile_lab import ProfileLab
-from bench.runner import ROOT
+from bench.paths import ROOT
 from server import create_app
 
 

@@ -15,8 +15,6 @@
       <a class="brand" href="/">AMBI-Bench</a>
       <nav aria-label="Main">
         <button class="nav-item selected" data-tab="profiles">Profiles</button>
-        <button class="nav-item" data-tab="runs">Developer checks</button>
-        <button class="nav-item" data-tab="workspaces">Artifact checks</button>
         <button class="nav-item" data-tab="architecture">Methodology</button>
       </nav>
       <span id="connection" class="connection">Connecting</span>
@@ -24,10 +22,6 @@
     <div class="shell">
       <main>
         <div id="message" role="alert" hidden></div>
-        <div id="restart-warning" class="warning" hidden>
-          Team code changed. Restart this dashboard before running a new
-          benchmark.
-        </div>
         <section id="profiles-view" class="view">
           <div class="page-heading">
             <div>
@@ -45,204 +39,6 @@
             All profiles and sources are fictional. Live AMBI needs the team's
             API configuration. VNC can use the same profile packs once its
             environment is ready.
-          </p>
-        </section>
-        <section id="runs-view" class="view" hidden>
-          <div class="page-heading">
-            <div>
-              <h1>Evaluation results</h1>
-              <p>Decision quality, interruption timing, and task completion.</p>
-            </div>
-            <div class="dataset-stamp">
-              <span>Scenarios</span><strong id="case-count">—</strong
-              ><small id="dataset-version">Loading dataset</small>
-            </div>
-          </div>
-          <form id="run-form" class="run-controls">
-            <label
-              >Evaluation mode<select id="mode">
-                <option value="offline">Offline · real product logic</option>
-                <option value="live">Live · Decisions classifier</option>
-              </select></label
-            ><label
-              >Adapter<select id="adapter">
-                <option value="product">AMBI implementation</option>
-                <option value="always_quiet">Baseline · always quiet</option>
-                <option value="always_intervene">
-                  Baseline · always intervene
-                </option>
-              </select></label
-            ><label
-              >Dataset split<select id="split">
-                <option value="all">All scenarios</option>
-                <option value="dev">Development</option>
-                <option value="holdout">Holdout</option>
-              </select></label
-            ><button class="primary run-button" id="run-button" type="submit">
-              Run evaluation</button
-            ><button class="secondary" id="cancel-button" type="button" hidden>
-              Stop run
-            </button>
-          </form>
-          <div id="mode-note" class="mode-note">
-            Offline checks use the team's real logic with synthetic inputs. No
-            cameras, microphones or desktop actions.
-          </div>
-          <div class="run-strip" aria-live="polite">
-            <span id="run-status">Ready for a first run</span
-            ><span id="run-count">—</span
-            ><button id="download" class="text-button" disabled>
-              Export JSON
-            </button>
-          </div>
-          <div class="run-progress"><div id="run-progress-fill"></div></div>
-          <div class="metrics">
-            <article>
-              <span>Cases passing</span><strong id="pass-value">—</strong
-              ><small id="pass-detail">Run a suite to see evidence</small>
-            </article>
-            <article>
-              <span>False interruptions</span
-              ><strong id="interrupt-value">—</strong
-              ><small id="interrupt-detail"
-                >Unwanted offers / quiet opportunities</small
-              >
-            </article>
-            <article>
-              <span>Missed help</span><strong id="miss-value">—</strong
-              ><small id="miss-detail">Missed / relevant opportunities</small>
-            </article>
-            <article>
-              <span>Critical failures</span
-              ><strong id="critical-value">—</strong
-              ><small id="critical-detail"
-                >Errors are never counted as passes</small
-              >
-            </article>
-          </div>
-          <div class="analysis-grid">
-            <section class="panel suite-panel">
-              <div class="section-heading">
-                <h2>Behavior by suite</h2>
-                <span class="subtle">Passing / evaluated</span>
-              </div>
-              <div id="suite-bars" class="suite-bars">
-                <p class="empty">
-                  Policy, cues, speech and timing appear here as they run.
-                </p>
-              </div>
-            </section>
-            <section class="panel">
-              <div class="section-heading">
-                <h2>Decision matrix</h2>
-                <span class="subtle">Expected → observed</span>
-              </div>
-              <div id="confusion" class="confusion">
-                <p class="empty">
-                  See exactly where intended behavior diverges.
-                </p>
-              </div>
-            </section>
-          </div>
-          <section class="case-section">
-            <div class="section-heading">
-              <h2>Scenario results</h2>
-              <div class="case-filters">
-                <label class="sr-only" for="case-filter">Filter scenarios</label
-                ><select id="case-filter">
-                  <option value="all">All results</option>
-                  <option value="fail">Failures & errors</option>
-                  <option value="critical">Critical cases</option></select
-                ><label class="sr-only" for="suite-filter">Filter suite</label
-                ><select id="suite-filter">
-                  <option value="all">Every suite</option>
-                  <option value="policy">Notification policy</option>
-                  <option value="cues">Cue state</option>
-                  <option value="speech">Speech gate</option>
-                  <option value="scheduler">UI scheduler</option>
-                  <option value="classifier">Live classifier</option>
-                </select>
-              </div>
-            </div>
-            <div
-              id="case-grid"
-              class="case-grid"
-              aria-label="Scenario results"
-            ></div>
-            <div class="legend">
-              <span><i class="pass"></i> Pass</span
-              ><span><i class="fail"></i> Fail</span
-              ><span><i class="error"></i> Error</span
-              ><span><i class="pending"></i> Not run</span>
-            </div>
-            <div id="case-detail" class="case-detail">
-              <p class="empty">
-                Select a scenario to inspect its input, expected behavior and
-                result.
-              </p>
-            </div>
-          </section>
-          <section class="comparison-section">
-            <div class="section-heading">
-              <h2>Policy comparison</h2>
-              <span class="subtle"
-                >Same dataset, split and source · lower is better</span
-              >
-            </div>
-            <div id="comparison"></div>
-          </section>
-          <section class="history-section">
-            <div class="section-heading">
-              <h2>Run history</h2>
-              <span class="subtle">Compare the same suite and dataset</span>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Run</th>
-                    <th>Execution</th>
-                    <th>Cases</th>
-                    <th>Unwanted offers</th>
-                    <th>Missed help</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody id="history"></tbody>
-              </table>
-            </div>
-          </section>
-          <p class="method-note">
-            Synthetic regression evidence, not a population benchmark. Labels
-            await teammate review. Offline timings do not measure
-            camera-to-speech latency.
-          </p>
-          <div id="provenance" class="provenance"></div>
-        </section>
-        <section id="workspaces-view" class="view" hidden>
-          <div class="page-heading">
-            <div>
-              <h1>Workspace tests</h1>
-              <p>Run AMBI on fictional files, then verify the saved result.</p>
-            </div>
-            <span class="tag">LOCAL FILES ONLY</span>
-          </div>
-          <div class="workspace-flow">
-            <span><b>01</b> Prepare files</span><span>→</span
-            ><span><b>02</b> Let AMBI work</span><span>→</span
-            ><span><b>03</b> Inspect the result</span>
-          </div>
-          <div id="workspace-catalog" class="workspace-catalog"></div>
-          <div class="section-heading">
-            <h2>Your prepared workspaces</h2>
-            <span class="subtle">Fresh copies; originals remain intact</span>
-          </div>
-          <div id="workspaces"></div>
-          <p class="method-note">
-            Readback checks the resulting artifact and source integrity. It
-            cannot prove that no external action happened. Use only the
-            generated folder; payment, sending and deletion are not part of
-            these tasks.
           </p>
         </section>
         <section id="architecture-view" class="view" hidden>
@@ -297,15 +93,6 @@
               The VNC environment is still being prepared. For now, use this
               machine. The same profile manifests and source packs can be loaded
               on the test machine once AMBI works there.
-            </p>
-          </div>
-          <div class="boundaries">
-            <h2>Optional developer tools</h2>
-            <p>
-              Developer checks exercise AMBI’s policy, scheduler and input
-              gates. Artifact checks verify saved task outputs. These remain
-              available for debugging and are not required to run a profile
-              scenario.
             </p>
           </div>
         </section>

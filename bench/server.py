@@ -9,7 +9,6 @@ import secrets
 import subprocess
 from pathlib import Path
 
-from pydantic import ValidationError
 from starlette.applications import Starlette
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.responses import JSONResponse, HTMLResponse, FileResponse
@@ -17,15 +16,12 @@ from starlette.routing import Mount, Route, WebSocketRoute
 from starlette.staticfiles import StaticFiles
 from starlette.websockets import WebSocketDisconnect
 
-from bench.runner import BenchRunner, RunConfig
-from bench.workspaces import WorkspaceLab
+from bench.paths import ROOT
 from bench.profile_lab import ProfileLab, profiles
 
 
 def create_app(*, output_dir=None, port=8766):
-    runner = BenchRunner(output_dir)
-    lab = WorkspaceLab(runner.output_dir / "workspaces")
-    profile_lab = ProfileLab(runner.output_dir / "profiles")
+    profile_lab = ProfileLab(Path(output_dir or ROOT / "data/bench") / "profiles")
     token = secrets.token_urlsafe(32)
     origins = {f"http://{host}:{port}" for host in ("localhost", "127.0.0.1")}
 
@@ -36,13 +32,8 @@ def create_app(*, output_dir=None, port=8766):
 
     def state():
         return {
-            "run": runner.current,
-            "revision": runner.revision,
-            "history": runner.history(),
-            "workspaces": lab.list(),
             "profile_sessions": profile_lab.sessions(),
             "profile_app": profile_lab.app_state(),
-            "restart_required": runner.catalog()["restart_required"],
         }
 
     async def bootstrap(request):
@@ -51,8 +42,6 @@ def create_app(*, output_dir=None, port=8766):
         return JSONResponse(
             {
                 "token": token,
-                "catalog": runner.catalog(),
-                "workspace_catalog": lab.catalog(),
                 "profiles": profiles(),
                 **state(),
             },
@@ -72,9 +61,6 @@ def create_app(*, output_dir=None, port=8766):
             body = json.loads(raw or b"{}")
             if not isinstance(body, dict):
                 raise ValueError("Expected an object")
-            if action == "run":
-                run_id = runner.start(RunConfig.model_validate(body))
-                return JSONResponse({"id": run_id}, 202)
             if action == "profile-prepare":
                 return JSONResponse(profile_lab.prepare(body.get("profile", "")), 201)
             if action == "profile-launch":
@@ -106,27 +92,13 @@ def create_app(*, output_dir=None, port=8766):
                         body.get("notes", ""),
                     )
                 )
-            if action == "cancel":
-                await runner.cancel()
-            elif action == "prepare":
-                return JSONResponse(lab.prepare(body.get("scenario", "")), 201)
-            elif action == "verify":
-                return JSONResponse(
-                    await asyncio.to_thread(lab.verify, body.get("id", ""))
-                )
-            elif action == "open-workspace":
-                await asyncio.to_thread(lab.open_editor, body.get("id", ""))
-            else:
-                return JSONResponse({"error": "Unknown action"}, 404)
-            return JSONResponse({"ok": True})
-        except ValidationError:
-            return JSONResponse({"error": "Invalid benchmark configuration."}, 400)
+            return JSONResponse({"error": "Unknown action"}, 404)
         except (ValueError, KeyError, FileNotFoundError) as exc:
             return JSONResponse({"error": str(exc)[:200]}, 400)
         except (OSError, subprocess.SubprocessError):
             return JSONResponse(
                 {
-                    "error": "Could not access the workspace or open VS Code. Open the displayed folder manually."
+                    "error": "Could not access the profile or open its editor. Open the displayed folder manually."
                 },
                 400,
             )
@@ -172,21 +144,6 @@ def create_app(*, output_dir=None, port=8766):
         except (ValueError, FileNotFoundError):
             return JSONResponse({"error": "Profile session not found"}, 404)
 
-    async def report(request):
-        if not authorized(request):
-            return JSONResponse({"error": "Unauthorized"}, 403)
-        try:
-            result = runner.read_report(request.path_params["run_id"])
-            return JSONResponse(
-                result,
-                headers={
-                    "Cache-Control": "no-store",
-                    "Content-Disposition": 'attachment; filename="ambi-bench-report.json"',
-                },
-            )
-        except (ValueError, FileNotFoundError):
-            return JSONResponse({"error": "Report not found"}, 404)
-
     async def websocket(ws):
         protocols = ws.scope.get("subprotocols", [])
         if (
@@ -210,7 +167,6 @@ def create_app(*, output_dir=None, port=8766):
         try:
             yield
         finally:
-            await runner.cancel()
             await profile_lab.stop()
 
     app = Starlette(
@@ -220,7 +176,6 @@ def create_app(*, output_dir=None, port=8766):
             Route("/api/profile-report/{session_id}", profile_report),
             Route("/profile-files/{session_id}/{relative:path}", profile_source),
             Route("/profile-view/{session_id}/{relative:path}", profile_source),
-            Route("/api/report/{run_id}", report),
             WebSocketRoute("/ws", websocket),
             Mount(
                 "/", StaticFiles(directory=Path(__file__).with_name("web"), html=True)
@@ -231,6 +186,5 @@ def create_app(*, output_dir=None, port=8766):
     app.add_middleware(
         TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "testserver"]
     )
-    app.state.runner, app.state.lab = runner, lab
     app.state.profile_lab = profile_lab
     return app

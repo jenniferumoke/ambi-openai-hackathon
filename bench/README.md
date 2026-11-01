@@ -66,14 +66,13 @@ uv run --with reportlab==4.4.9 python bench/tools/build_documents.py
 
 ReportLab is only an optional authoring dependency. Committed PDFs work without installing it. Render and visually review changed pages before committing them. `test_examples.py` inside the coding fixture is deliberately failing until AMBI or the operator fixes `exercise.py`; it is not part of the repository's passing test suite.
 
-## Validation and secondary tools
+## Validation
 
 ```sh
-uv run pytest tests/test_profile_lab.py tests/test_bench.py -q
+uv run pytest tests/test_profile_lab.py -q
 uv run pytest -q
 ```
 
-**Developer checks** retain the earlier 50 offline component cases and 12 live classifier cases. **Artifact checks** retain optional saved-output verification. Neither is required for the primary profile journey. See [component checks](COMPONENT_CHECKS.md) for those commands, metrics and the previously discovered A11 scheduler race.
 
 The profile loader has been tested for independent memory stores, source access boundaries, file age, preview escaping, greeting exclusion, and refusal to capture a different AMBI session. A successful loader test is not a successful live AMBI behavior test.
 
@@ -81,6 +80,6 @@ The profile loader has been tested for independent memory stores, source access 
 
 A 75-second demo can show a profile's history (10s), open its invoice/email (15s), show an actual proactive AMBI suggestion (30s), then save the review and explain what was observed (20s). Record the actual live result; never present a prepared expectation or reference answer as AMBI output. Keep the reviewer page out of the observed desktop. Use only the fictional profile windows in the recording. Publish the final video with public, signed-out access and a maximum duration of 90 seconds.
 
-Profile manifests, source documents, code fixtures and the lab were authored during the hackathon with Codex. No real personal records or third-party document templates were used. Codex connected the team's existing memory and server interfaces without modifying product behavior, built reproducible profile sessions, and wrote isolation/capture checks. The earlier component suite also exposed a missing final worker-generation guard (A11). The team's imported prototype retains its existing history and credits.
+Profile manifests, source documents, code fixtures and the lab were authored during the hackathon with Codex. No real personal records or third-party document templates were used. Codex connected the team's existing memory and server interfaces without modifying product behavior, built reproducible profile sessions, and wrote isolation/capture checks. The team's imported prototype retains its existing history and credits.
 
-The interface remains plain and compact. The earlier table/chart layout drew structural inspiration from SWE-bench and Terminal-Bench; the primary workflow is now a profile lab rather than a competitive benchmark. See [architecture](../docs/ambi-bench-architecture.md).
+The interface is a plain, compact profile lab. See [architecture](../docs/ambi-bench-architecture.md).

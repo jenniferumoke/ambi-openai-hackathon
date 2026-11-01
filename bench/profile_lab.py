@@ -22,8 +22,7 @@ from urllib.error import URLError
 from uuid import uuid4
 
 from memory_store import MemoryStore
-from bench.runner import ROOT, git
-from bench.workspaces import FIXTURES
+from bench.paths import ROOT, FIXTURES, git
 
 PROFILES = Path(__file__).with_name("profiles")
 

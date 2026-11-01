@@ -181,7 +181,7 @@ activity, isolated demo memory, and realistic invoices, emails or coding session
 Launch AMBI with a profile, observe its proactive suggestion, and save a simple
 review. Starting sensors remains explicit in AMBI. Live sessions need the team's
 API configuration. See [profile-lab setup](bench/README.md) for the workflow,
-local/VNC boundaries and demo instructions. Component checks remain secondary.
+local/VNC boundaries and demo instructions.
 
 ## Credits and provenance
 
