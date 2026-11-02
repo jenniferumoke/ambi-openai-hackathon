@@ -20,6 +20,27 @@
 
 <p align="center"><em>The current demo frontend, captured locally with fictional Ellis context. Camera is off.</em></p>
 
+## Desktop companion preview
+
+The next desktop UI puts Ambi and voice first: a larger animated companion, visible microphone state, expanding actions, stronger activity tint, and a persistent **Stop task** control. Typing remains available through **Type instead**.
+
+![Ambi desktop companion with a large teal mascot, task activity and visible Stop controls. Synthetic UI preview.](docs/media/companion-2026-11-02/working.jpg)
+
+![Twelve-second silent walkthrough of the companion UI: idle, listening, activity, Stop and browser-chat handoff. Synthetic states.](docs/media/companion-2026-11-02/ambi-companion-walkthrough.gif)
+
+[Watch or download the MP4 walkthrough](docs/media/companion-2026-11-02/ambi-companion-walkthrough.mp4) · [Capture details and verification limits](docs/media/companion-2026-11-02/README.md)
+
+**Development preview, not a live AI recording or a released desktop build.** The screenshots use fictional tasks and synthetic listening state; playback is retimed. They do not demonstrate wake-word detection or real computer control. The existing demo and setup instructions below remain unchanged.
+
+The local candidate also adds a browser handoff for **ChatGPT, Claude and Gemini**: select a service, optionally copy a prompt, and review/send it in that service yourself. Conversation import, reply reading and automatic submission are not implemented.
+
+<details>
+<summary>See the browser-chat handoff</summary>
+
+![Browser chat service selector, optional prompt and Copy prompt and open control.](docs/media/companion-2026-11-02/browser-chats.jpg)
+
+</details>
+
 ## Meet Ambi
 
 You come back to your Mac with a half-finished task and a head full of context. Ambi remembers the notes you chose to save, greets you with that context, and can offer help when there is a useful opening. Ask for a concrete computer task, and a separate worker can take it on while you keep talking.
