@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ambi</title>
+  <link rel="icon" type="image/png" href="/ambi-icon.png" />
+</head>
+<body>
+  <div id="computer-frame-banner" role="status" hidden><span id="computer-frame-label"></span><button id="computer-frame-action" type="button">Stop task</button></div>
+  <main id="workspace" aria-label="Ambi companion">
+    <section class="character-space" aria-label="Companion">
+    <h1 id="hero-title" class="sr-only">Ambi</h1>
+    <canvas id="ambi" data-source="/ambi-companion.riv" width="340" height="240" role="img" aria-label="Ambi waiting"></canvas>
+    <div class="voice-controls">
+      <p id="presence" role="status" aria-live="polite">Ready when you are</p>
+      <button id="start" type="button"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3m-4 0h8"/></svg><span id="voice-label">Talk with Ambi</span></button>
+      <p id="voice-hint">Tap to talk. Your microphone stays off until you start.</p>
+      <div class="voice-secondary"><button id="mute-voice" type="button" hidden>Mute microphone</button><button id="type-instead" type="button" aria-expanded="false" aria-controls="message-form">Type instead</button><button id="voice-connections" type="button">Connections</button></div>
+    </div>
+    </section>
+    <section id="activity-panel" aria-label="Session activity" hidden>
+      <header class="activity-header"><div><h2>With Ambi</h2><p id="activity-status">Ready when you are.</p></div><button id="collapse-activity" aria-label="Collapse activity" title="Collapse activity"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button></header>
+      <div class="task-toolbar"><label for="task-mode">Mode</label><select id="task-mode"><option value="voice">Voice conversation</option><option value="codex">Codex tasks</option></select><button id="connections">Setup &amp; connections</button></div>
+      <section id="codex-approvals" aria-label="Permission requests" hidden></section>
+      <div id="activity-content" tabindex="0"><div id="activity-empty"><p>Speak to Ambi. Follow each action here as it happens.</p><div class="sample-actions"><button id="sample-prompt" type="button">Try a sample prompt</button></div></div><div id="activity-steps"></div><button id="earlier-messages" type="button">Earlier messages</button><div id="conversation" role="log" aria-label="Conversation" aria-live="polite"></div></div>
+      <section id="offer" hidden><p id="offer-text"></p><div class="offer-actions"><button id="accept-offer">Help me</button><button id="dismiss-offer">Not now</button></div></section>
+      <p id="activity-error" role="alert" hidden></p>
+      <div class="activity-tools"><button id="stop-work" type="button" hidden>Stop task</button><button id="preview-frame" type="button">Preview activity tint</button></div>
+      <form id="message-form" hidden><label class="sr-only" for="message">Message Ambi</label><textarea id="message" rows="2" maxlength="4000" placeholder="Type a message to Ambi…"></textarea><div class="composer-actions"><button id="start-session" type="button" hidden>Start session</button><button id="send-message" type="submit" disabled>Send</button></div></form>
+    </section>
+  </main>
+  <button id="show-activity" title="Show activity" aria-label="Show activity"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M5 5h14v14H5zM10 5v14"/></svg></button>
+  <button id="show-setup" title="Customize Ambi" aria-label="Customize Ambi"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 7h16M4 17h16M9 4v6M15 14v6"/></svg></button>
+  <section id="connection-dialog" aria-labelledby="connection-heading" hidden><div class="connection-shell">
+    <button id="close-connections" class="dialog-close" aria-label="Close connections">Close</button>
+    <h2 id="connection-heading">Ready to work with Ambi</h2>
+    <section class="connection-step"><h3>Voice conversation</h3><p id="voice-connection-status">Connect voice to talk with Ambi.</p><button id="configure-voice" type="button">Set up voice…</button><p class="connection-note">Your key is entered in the app’s private masked field. Ambi listens only after you start a conversation.</p></section>
+    <section class="connection-step"><h3>Connect Codex</h3><p id="codex-connection-status">Connect to your locally installed Codex CLI. Your sign-in stays with Codex.</p><button id="connect-codex">Connect Codex</button><button id="sign-in-codex">Sign in with ChatGPT</button><label class="model-choice" for="codex-model">Model <select id="codex-model" disabled></select></label></section>
+    <section class="connection-step"><h3>Choose a working folder</h3><p id="working-folder"></p><p class="connection-note" id="workspace-notice" hidden></p><button id="choose-workspace">Choose folder…</button><label class="write-option"><input id="allow-file-changes" type="checkbox" /> Allow file changes in this folder</label><p class="connection-note">File tasks start read-only. Requests for additional access appear for you to review.</p></section>
+    <section class="connection-step" aria-labelledby="computer-access-heading"><h3 id="computer-access-heading">Computer use</h3><p id="computer-permissions"></p><p id="computer-setup-status" role="status" class="connection-note"></p><button id="toggle-computer-access" type="button">Set up computer use</button> <button id="review-computer-setup" type="button" aria-controls="computer-setup">Review setup</button>
+      <div id="computer-setup" hidden><h4>Allow Ambi to see and control apps</h4><ol id="computer-setup-checks"></ol><p class="connection-note" id="computer-setup-explanation">You review each operating-system permission yourself. No access is granted automatically.</p><div class="permission-actions"><button id="open-permissions" type="button">Open Device Control &amp; Data Access</button><button id="request-screen-permission" type="button">Request screen access…</button><button id="reconnect-driver" type="button">Reconnect driver &amp; check again</button></div><p class="connection-note">Reconnect only restarts Ambi’s own idle service. Your voice key stays in this app’s memory and history is retained. It does not turn computer control on.</p></div>
+    </section>
+    <section class="connection-step" aria-labelledby="browser-chats-heading"><h3 id="browser-chats-heading">Continue in another chat</h3><p>Take a prompt to ChatGPT, Claude or Gemini in your browser. You review and send it there.</p><label for="browser-chat">Chat service</label><select id="browser-chat"><option value="chatgpt">ChatGPT</option><option value="claude">Claude</option><option value="gemini">Gemini</option></select><label for="browser-draft">Prompt to take with you (optional)</label><textarea id="browser-draft" rows="3" maxlength="4000" placeholder="Write a prompt to copy…"></textarea><button id="open-browser-chat" type="button">Open ChatGPT</button><p id="browser-chat-status" role="status" class="connection-note">Browser handoff only. Ambi does not read your chats or send the prompt.</p></section>
+    <section class="connection-step"><h3>Try your first task</h3><p>Start with a plan. Your conversation and task summaries are saved on this computer.</p><button id="first-task">Prepare a sample prompt</button></section>
+    <p class="connection-note" id="app-version"></p><button id="copy-diagnostics">Copy diagnostics</button>
+    <p id="connection-error" role="alert" hidden></p>
+  </div></section>
+  <dialog id="setup-dialog" aria-labelledby="setup-heading">
+    <div class="setup-shell">
+      <section class="setup-options">
+        <h2 id="setup-heading">Make Ambi yours.</h2>
+        <p class="setup-intro">A little company, your way.</p>
+        <div class="setup-group"><div class="setup-label"><h3>Colour</h3><span id="setup-color-name">Teal</span></div><div id="setup-colors" role="group" aria-label="Character colour"></div></div>
+        <div class="setup-group"><h3>Character</h3><button class="setup-character-choice" aria-pressed="true" aria-label="Classic Ambi, selected"><canvas id="setup-character" width="150" height="108" aria-hidden="true"></canvas><span>Classic Ambi</span></button></div>
+        <div class="setup-group"><label for="setup-name">Display name</label><input id="setup-name" maxlength="24" autocomplete="off" spellcheck="false" /><p class="setup-note">Your name for the companion. Voice identity stays Ambi.</p></div>
+        <div class="setup-group setup-row"><div><h3>Background</h3><div class="setup-segment" role="group" aria-label="Background"><button data-background="white">White</button><button data-background="black">Black</button><button data-background="navy">Navy</button></div></div><div><h3>Movement</h3><div class="setup-segment" role="group" aria-label="Movement"><button data-animated="true">Animated</button><button data-animated="false">Still</button></div></div></div>
+        <div class="setup-group"><label for="setup-size">Character size</label><input id="setup-size" type="range" min="0.35" max="0.95" step="0.05" /><div class="setup-range-labels"><span>Small</span><span>Large</span></div></div>
+      </section>
+      <section class="setup-preview-panel" aria-label="Live preview">
+        <button id="setup-close" aria-label="Close setup without saving"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+        <h3 id="setup-preview-name">Ambi</h3>
+        <div id="setup-stage" data-background="white"><canvas id="setup-preview" width="500" height="360" role="img" aria-label="Live Ambi preview"></canvas></div>
+        <div class="setup-save-area"><p id="setup-error" role="alert"></p><button id="setup-save">Save my Ambi</button><p>Saved on this computer. Change it anytime.</p></div>
+      </section>
+    </div>
+  </dialog>
+  <p id="notice" role="status" hidden></p>
+  <script type="module" src="/src/companion.js"></script>
+</body>
+</html>
