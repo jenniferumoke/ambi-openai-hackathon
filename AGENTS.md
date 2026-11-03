@@ -515,3 +515,8 @@ job snapshots add goal_id, goal_status and review_round. Activity entries show C
 ## Linux source preview — 3 November 2026
 
 `desktop/linux/` adds an isolated Electron development host for existing non-root X11 sessions using shared UI/backend on loopback 8767. `linux_session.py` reports X11/scrot/clipboard prerequisites; Desktop rechecks before every Linux operation. Wayland/XWayland are refused. The UI reports Linux checks independently. `main.create_audio_io` selects compatible PortAudio on non-Mac platforms; Linux background screen observation remains disabled. Native source provides a primary-display teal frame/separate Stop driven by job state, masked memory-only key setup, exact-page IPC, occupied-port refusal and owned-child shutdown. No API route/schema change. Browser handoff/folder picking and Linux runtime acceptance remain open. See `desktop/linux/README.md`; offline Mac tests are not Linux-control proof.
+
+
+## Windows companion host
+
+`desktop/windows/` uses WPF/WebView2 on loopback 8767 and owns only its launched service and explicitly started session/task. `scripts/prepare-windows-runtime.py` bundles pinned Windows Python/Codex without executing them on Mac. Preserve Windows compatibility audio, exact-page bridge checks, masked memory-only key setup, log-writer disposal between launches and the shared goal-review implementation. A cross-build is not Windows runtime acceptance; see `docs/verification-2026-11-03.md` and `desktop/windows/README.md`.

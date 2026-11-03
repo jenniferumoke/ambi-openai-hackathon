@@ -37,6 +37,7 @@ def main():
         raise SystemExit('Release bundling expects the verified standalone Codex 0.149.0 layout.')
     shutil.copytree(package, resources / 'Codex', symlinks=True)
     licenses = resources / 'Licenses'; licenses.mkdir()
+    shutil.copy2(ROOT / 'LICENSE', licenses / 'Ambi-LICENSE.txt')
     url = 'https://raw.githubusercontent.com/openai/codex/rust-v0.149.0/LICENSE'
     with urllib.request.urlopen(url) as response: (licenses / 'Codex-LICENSE.txt').write_bytes(response.read())
     (licenses / 'NOTICE.txt').write_text('Ambi includes the OpenAI Codex CLI, licensed under Apache-2.0. Codex retains its vendor signature. Python dependency licenses are included in their bundled distribution metadata. No user credentials or local conversation data are bundled.\n')
