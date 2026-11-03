@@ -6,7 +6,7 @@ Ambi is an open-source AI agent originating at the London Codex Community hackat
 
 The film introduces voice, local memory and computer use on Mac/Windows, then shows visible Stop control and invites people to explore the repository. Its visuals crop real task excerpts from the existing public extended demo, with retimed Windows footage and held result frames. These were typed tests; they are edited examples, not a continuous new voice-to-action task. The extended video retains the Windows recovery disclosure. Linux runtime and arbitrary-task reliability are not claimed.
 
-The narrator is OpenAI-generated speech from Ambi’s existing configured voice connection, with microphone, computer control and passive screen observation off. The generated response matched the requested script. No API key was retrieved, stored in this folder or included in the soundtrack. App state returned to idle afterward. Only the final narration WAV is included, not the raw system-playback capture.
+The narrator is OpenAI-generated speech from Ambi’s existing configured voice connection, with outgoing microphone muted, and computer control and passive screen observation disabled. The generated response matched the requested script. No API key was retrieved, stored in this folder or included in the soundtrack. App state returned to idle afterward. Only the final narration WAV is included, not the raw system-playback capture.
 
 Exactly 30.000 seconds; H.264 1920×1080 at 30 fps, AAC 48 kHz. Full decode, sound-level and caption-bound checks passed. `verification.json` contains the checksum and details. The separate SRT and phrase timing file support editing; the video has burned-in captions.
 
@@ -24,3 +24,5 @@ uv run python docs/media/hackathon-30s-2026-11-03/render.py \
 ```
 
 For the checked phrase timings, copy `phrase-timings.json` into the output folder before rendering; without it the renderer estimates phrase timing. The script produces `Ambi-Hackathon-30s.mp4` and its SRT. No original app installation or private data is needed.
+
+The public-input rebuild was exercised on the development Mac; see `rebuild-verification.json`. No running Ambi session or provider request was needed to reproduce the edit.
