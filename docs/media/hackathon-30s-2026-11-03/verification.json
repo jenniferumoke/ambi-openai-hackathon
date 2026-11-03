@@ -1,0 +1,24 @@
+{
+  "file": "ambi-hackathon-30s.mp4",
+  "durationSeconds": 30.0,
+  "bytes": 1538201,
+  "sha256": "9d9972fb4ea8812cb29b355dd3e55ea9f9400ad668ffcc041bff3957b4125467",
+  "video": "H.264 1920×1080 30 fps",
+  "audio": {
+    "codec": "AAC 48 kHz",
+    "peakDb": -1.7,
+    "meanDb": -19.8
+  },
+  "fullDecodePassed": true,
+  "captionCues": 7,
+  "captionBoundsPassed": true,
+  "narration": "OpenAI speech via existing Ambi connection; response matched requested script; no API key retrieved",
+  "eventContext": "London Codex Community hackathon, 1 November 2026, supplied by project owner",
+  "appFinalState": {
+    "status": "idle",
+    "microphone_enabled": false,
+    "computer_enabled": false
+  },
+  "prototypeLimits": "Edited Mac/Windows task excerpts; no Linux runtime or general reliability claim",
+  "visualReviewPassed": true
+}
