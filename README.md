@@ -20,6 +20,16 @@
 
 <p align="center"><em>The current demo frontend, captured locally with fictional Ellis context. Camera is off.</em></p>
 
+## Meet Ambi in 30 seconds
+
+Ambi is an **open-source AI agent started at the London Codex Community hackathon on 1 November 2026**. The working prototype brings OpenAI voice, local memory and visible computer actions together on Mac and Windows.
+
+[![Meet Ambi: an open-source AI agent from the London Codex Community hackathon.](docs/media/hackathon-30s-2026-11-03/poster.jpg)](docs/media/hackathon-30s-2026-11-03/ambi-hackathon-30s.mp4)
+
+[Watch the 30-second introduction](docs/media/hackathon-30s-2026-11-03/ambi-hackathon-30s.mp4) · [Captions, provenance and reproducible edit](docs/media/hackathon-30s-2026-11-03/README.md) · [MIT license](LICENSE)
+
+Ask for help, follow Ambi’s actions and keep Stop within reach. Explore the source and help shape what comes next. The video uses OpenAI-generated narration and edited recorded tests; the extended walkthrough below includes the task details and recovery disclosure.
+
 ## Recorded Mac and Windows demo
 
 [![Meet Ambi: recorded desktop tasks with OpenAI narration.](docs/media/product-demo-2026-11-03/poster.jpg)](docs/media/product-demo-2026-11-03/ambi-product-demo.mp4)
