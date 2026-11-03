@@ -1,0 +1,11 @@
+Meet Ambi. A voice-first companion that turns a request into visible action.
+
+On the Mac, Ambi opens Calculator and completes a calculation. This separate recorded test shows nine times nine, with eighty-one displayed in the app.
+
+On Windows, Ambi works in Notepad. This recorded test includes an editing mistake, recovery, and a saved note whose text was independently checked.
+
+A coloured frame and a separate Stop task button show when Ambi is acting. Stop was tested on a separate task, and the frame cleared.
+
+Connections offer browser handoffs to ChatGPT, Claude and Gemini. Authenticated chat automation is not demonstrated here.
+
+Built and tested on Mac and Windows. Linux is a source preview. Ambi is a working prototype, with clear controls and room to grow.

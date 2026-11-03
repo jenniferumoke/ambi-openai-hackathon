@@ -20,6 +20,16 @@
 
 <p align="center"><em>The current demo frontend, captured locally with fictional Ellis context. Camera is off.</em></p>
 
+## Recorded Mac and Windows demo
+
+[![Meet Ambi: recorded desktop tasks with OpenAI narration.](docs/media/product-demo-2026-11-03/poster.jpg)](docs/media/product-demo-2026-11-03/ambi-product-demo.mp4)
+
+[Watch the 95-second narrated demo](docs/media/product-demo-2026-11-03/ambi-product-demo.mp4) · [Captions and provenance](docs/media/product-demo-2026-11-03/README.md)
+
+Edited real task recordings show Calculator on Mac, a checked Notepad save on Windows, and visible frame/Stop controls. The Windows recovery disclosure is retained. Narration is OpenAI-generated; browser handoff material is a labelled interface preview. These are narrow prototype demonstrations, not general reliability or release claims.
+
+The current companion source is now available for [native Mac](desktop/macos/README.md), [native Windows](desktop/windows/README.md), and an [unverified Linux X11 preview](desktop/linux/README.md). See [current verification and remaining gates](docs/verification-2026-11-03.md).
+
 ## Desktop companion preview
 
 The next desktop UI puts Ambi and voice first: a larger animated companion, visible microphone state, expanding actions, stronger activity tint, and a persistent **Stop task** control. Typing remains available through **Type instead**.
@@ -122,7 +132,7 @@ Open **http://127.0.0.1:8766**. Loading the lab does not enable sensors. Live se
 
 ## Context, with clear boundaries
 
-Ambi is a **single-user, local macOS hackathon prototype**. The server binds to loopback. Tasks, notes, and email excerpts are entered locally; there is no live inbox or reminders integration.
+Ambi is a **single-user, local desktop hackathon prototype**. The server binds to loopback. Tasks, notes, and email excerpts are entered locally; there is no live inbox or reminders integration.
 
 Camera cues are computed on-device. Audio, relevant saved memory, and enabled screen screenshots go to OpenAI; those screenshots can include the visible camera preview. The API key stays in Python. The separate cue journal retains numeric cue changes for up to 24 hours or 500 events, without camera images. Inferred feelings are never saved as personal memory.
 

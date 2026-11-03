@@ -1,0 +1,63 @@
+1
+00:00:00,350 --> 00:00:05,752
+Meet Ambi. A voice-first companion that turns a request into visible action.
+
+2
+00:00:07,750 --> 00:00:10,950
+I’m going to check nine times six in Calculator now.
+
+3
+00:00:11,100 --> 00:00:13,550
+The result is fifty-four.
+
+4
+00:00:13,950 --> 00:00:20,084
+On the Mac, Ambi opens Calculator and completes a calculation. This separate recorded
+test shows
+
+5
+00:00:20,084 --> 00:00:23,535
+nine times nine, with eighty-one displayed in the app.
+
+6
+00:00:27,950 --> 00:00:34,469
+On Windows, Ambi works in Notepad. This recorded test includes an editing mistake,
+recovery, and
+
+7
+00:00:34,469 --> 00:00:37,864
+a saved note whose text was independently checked.
+
+8
+00:00:52,200 --> 00:00:56,300
+I saved and checked the test note, and its text matches exactly.
+
+9
+00:00:56,800 --> 00:01:02,500
+There was a brief mistaken edit to another document, but it was undone right away and
+not saved.
+
+10
+00:01:04,550 --> 00:01:09,088
+A coloured frame and a separate Stop task button show when Ambi is acting.
+
+11
+00:01:09,088 --> 00:01:12,645
+Stop was tested on a separate task, and the frame cleared.
+
+12
+00:01:16,050 --> 00:01:20,441
+Connections offer browser handoffs to ChatGPT, Claude and Gemini.
+
+13
+00:01:20,441 --> 00:01:24,156
+Authenticated chat automation is not demonstrated here.
+
+14
+00:01:25,550 --> 00:01:31,483
+Built and tested on Mac and Windows. Linux is a source preview. Ambi is a working
+prototype, with
+
+15
+00:01:31,483 --> 00:01:33,440
+clear controls and room to grow.
