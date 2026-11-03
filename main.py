@@ -637,8 +637,10 @@ async def run_voice(worker, settings, args, observation_settings=None, screen_se
                 audio = enter_voice_audio(audio_stack, audio, hands_free=hands_free, runtime=runtime)
                 async with await runner.run(model_config={"playback_tracker": audio.tracker}) as session:
                     print("Connected. 'Stop' cancels active computer work, or exits when idle. 'Bye' exits everything.")
-                    if hands_free and audio is native_audio:
+                    if hands_free and audio is native_audio and sys.platform == "darwin":
                         print("macOS voice processing and speech confirmation are active. Spoken commands can interrupt replies.")
+                    elif hands_free and sys.platform != "darwin":
+                        print("Compatibility audio is active. Microphone capture is muted during replies.")
                     print("Ctrl+C exits. Moving the mouse to a primary-screen corner stops computer actions.")
                     sender = tasks.create_task(audio.send_microphone(session))
                     if runtime is not None:
