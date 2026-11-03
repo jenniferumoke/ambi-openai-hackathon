@@ -279,3 +279,9 @@ people. Sustained open-mouth speech can still resemble a yawn, and lighting,
 pose, and individual facial movement can change the model's scores. Validate
 with representative camera sessions before treating these thresholds as tuned
 for a particular user; the labels do not establish tiredness or emotions.
+
+Companion setup, Codex tasks and durable conversation history use additive APIs
+documented in [companion-api.md](companion-api.md); cue packet and retention
+contracts above are unchanged.
+
+Linux preview note (3 November 2026): no camera-cue schema changes. The Linux host denies renderer camera/microphone permission requests; voice capture is in the explicitly started Python PortAudio session. Linux background screen observation is disabled; explicitly requested computer-task screenshots are separate. See `desktop/linux/README.md`.

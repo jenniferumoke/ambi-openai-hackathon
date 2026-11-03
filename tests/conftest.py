@@ -31,6 +31,7 @@ def desktop(monkeypatch):
     monkeypatch.setitem(sys.modules, "pyperclip", clipboard)
     monkeypatch.setattr("desktop.time.sleep", lambda _: None)
     monkeypatch.setattr("desktop.platform.system", lambda: "Darwin")
+    monkeypatch.setattr('desktop.mac_permissions',lambda:{'Accessibility':True,'Screen Recording':True})
     result = Desktop()
     result.start()
     return result

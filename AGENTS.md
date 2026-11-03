@@ -26,13 +26,19 @@ its markup, CSS, and local component state.
 - `docs/camera-cues-api.md` has a focused camera API walkthrough. If a route or
   payload changes, update that document and this file in the same change.
 
-This is a **single-user, local macOS prototype**. The backend binds only to
-`127.0.0.1:8765`. A frontend on another computer cannot call that address on
+This is a **single-user, local desktop application under development**. Mac
+uses `127.0.0.1:8765`; the Windows companion uses `127.0.0.1:8767`. A frontend on another computer cannot call that address on
 the user's Mac. Do not change the binding, use wildcard CORS, or treat the
 ephemeral token as production authentication without a deliberate security
 design. There is no account or multi-user API.
 
 ## Start and develop
+
+- `desktop/macos/` is the native character-only development host. It loads
+  `ui/companion.html` through the same loopback service and uses the documented
+  bootstrap/token/WebSocket API. See `desktop/macos/README.md` for packaging,
+  native controls, session ownership, and verification limits. The dashboard
+  remains the default `/` frontend. The native shell is not the backend contract.
 
 - Install `uv`, Python 3.12, and Node.js 22 or newer. From the repository root,
   `./scripts/start.sh` syncs locked Python dependencies, installs UI packages if
@@ -201,8 +207,9 @@ type AmbiState = {
 
 `phase` is useful when `status === 'connected'`. `error` is a display string,
 not a structured error code. `camera` is `null` after about two seconds without
-a packet. `transcript` is a bounded, process-local UI log (up to 40 items); it
-can remain visible across voice sessions and disappears on server restart. The
+a packet. `transcript` is the latest 40 entries of a private SQLite archive. It survives service restarts;
+`POST /api/history` pages older messages. A bounded 200-entry checkpoint restores
+the working view without automatically resuming tasks or sensors. The
 snapshot exposes only the latest 12 runtime `events`; these are diagnostic, not
 a durable audit log. A `job` can also remain in a later snapshot after it ends.
 
@@ -217,6 +224,16 @@ provider error bodies are not exposed. A late spoken interruption may receive
 `response_cancel_not_active` after the reply has already finished. This is a
 nonfatal `realtime_warning`: the session remains connected for the next turn.
 Cancellation targets the interrupted response ID so it cannot stop a newer reply.
+
+`activity` is an optional, additive snapshot field used by the companion view:
+up to 200 recent entries `{id,kind,title,status,at,detail,job_id?}`. Kinds
+are `session`, `task`, and `action`; `at` is monotonic seconds. Action status
+means the OS operation returned, not that the user's task succeeded. A completed
+worker run is displayed as `returned` in this feed to preserve that distinction.
+The journal contains no screenshot pixels or typed text; task requests and
+worker summaries can contain user content. Entries are saved locally, but this is not a tamper-evident audit log.
+Desktop emits `computer_step_started` and `computer_step_finished` on the asyncio
+loop, outside the native worker thread. Existing HTTP and cue contracts remain.
 
 **Time units matter:** `received_at`, `expires_at`, `started_at`, `events.at`,
 and the observation hub's `observed_at`/`expires_at`/`cue_at` are Python
@@ -454,3 +471,47 @@ The `audio_fallback` diagnostic event is not a stable session-mode field.
 - Prefer `TestClient` with temporary databases for API tests. Avoid live
   camera, desktop, and provider calls in ordinary tests. Run the full Python
   suite and the UI tests/build before handing off an integration change.
+
+
+## Companion 0.5 contract additions
+
+`companion_service.py` is the production source/frozen entry point. It never
+seeds Ellis or starts voice automatically. `AMBI_DATA_DIR` selects private local
+storage; packaged builds include no `.env`, keys, user history or Codex sign-in.
+The original `server.py` CLI/demo defaults remain unchanged.
+
+`codex_bridge.py` owns a stdio Codex app-server child. It uses Codex's own login,
+queries available models, defaults to a read-only turn, disables sandbox network
+access, and displays transient command/file approval requests for explicit user
+decisions. Unsupported/stale requests fail closed. Do not silently grant broader
+session permissions or reinterpret a completed turn as verified task success.
+
+See [companion-api.md](docs/companion-api.md) for routes and state additions.
+Desktop control is off on every launch, separately opt-in, requires OS access,
+and uses the primary display coordinate space. The native screen-edge glow may
+cover all monitors; that does not imply multi-monitor input support. Windows
+voice uses the compatibility audio engine; preserve it when porting Mac code.
+
+
+### Computer reliability candidate — 2 November 2026
+
+The Mac computer worker also exposes a narrow `open_application` function for Chrome, Safari, TV, TextEdit and Calculator. It uses NSWorkspace application URLs, no shell, arbitrary executable, document argument or URL. Native read-back returns running/frontmost and visible-window/primary-display booleans without window titles or contents. Existing screenshot/input remains primary-display only. Unknown applications use the existing screenshot workflow; this addition does not imply general multi-display input. The same serialized Desktop generation/Stop checks guard the native action. Windows keeps its existing computer tool.
+
+`session_end_requested` diagnostic events identify `voice_exit_agent`, `voice_stop_when_idle` or `app_session_control`, without transcript or credentials. Provider failure summaries expose an exception type and caution that earlier actions may have happened; they omit raw error/request bodies and never replay a failed task automatically. Voice instructions distinguish a task completion boundary from an explicit request to end the voice session.
+
+The driver-lab iteration adds explicit `bring_to_primary` to the supported Mac app-opening tool, default false. Only an explicit request to move that app authorizes true. It uses granted AX access to move only the app focused window; messaging is bounded and position is read back. It does not resize windows or provide secondary-monitor mouse input. The native host sets AMBI_NATIVE_HOST=1 so workspace-backed native launches skip dotenv and use the masked launch-key flow. The normal source CLI dotenv behavior remains unchanged.
+
+
+## Reviewed computer goals
+
+The desktop AppRuntime enables a bounded goal controller around the existing OpenAI computer worker. A work attempt is followed by a separate read-only review using fresh evidence. The reviewer has screenshot inspection, native app-state inspection on Mac, and exact saved-text comparison only when both the path and expected text are explicitly present in the goal and the resolved path stays inside the selected workspace. It has no input, launch, file-write or shell tools. Screenshots remain transient; checkpoints contain only goal, current step, concise observed progress, state and review count.
+
+Incomplete routine work may continue through a different permitted UI approach, target refocus, another observation, or remaining steps. Unsupported/contradictory success claims cannot complete. Safety/permission boundaries, approval requirements, repeated approaches and budgets pause the goal; no blind replay after uncertain side effects. Stop cancels execution and review and checkpoints cancellation.
+
+Private checkpoints use companion_goals in the existing private SQLite database. Restart converts running goals to paused; it never starts desktop work automatically. An explicit spoken/typed continuation may pass resume_goal_id to use_computer; fresh review precedes any resumed action, and the original goal/permissions remain unchanged. Paused or explicitly stopped goals can be resumed only on a fresh user request. Review IDs remain monotonic across continuation.
+
+job snapshots add goal_id, goal_status and review_round. Activity entries show Checking progress, Progress checked and Next step selected. Reviewed completion uses checked status rather than treating an executor reply alone as success. The pinned status follows the current goal; legacy Codex replies retain their existing uncertainty label. Defaults: GOAL_REVIEW_ROUNDS=6 and GOAL_TIMEOUT_SECONDS=900, validated at at most 20 rounds and 3600 seconds per explicit run/resume. The older standalone ComputerWorker mode remains unchanged unless review=True; the desktop runtime explicitly enables it. These are bounded workflows, not AGI or a guarantee of arbitrary task completion.
+
+## Linux source preview — 3 November 2026
+
+`desktop/linux/` adds an isolated Electron development host for existing non-root X11 sessions using shared UI/backend on loopback 8767. `linux_session.py` reports X11/scrot/clipboard prerequisites; Desktop rechecks before every Linux operation. Wayland/XWayland are refused. The UI reports Linux checks independently. `main.create_audio_io` selects compatible PortAudio on non-Mac platforms; Linux background screen observation remains disabled. Native source provides a primary-display teal frame/separate Stop driven by job state, masked memory-only key setup, exact-page IPC, occupied-port refusal and owned-child shutdown. No API route/schema change. Browser handoff/folder picking and Linux runtime acceptance remain open. See `desktop/linux/README.md`; offline Mac tests are not Linux-control proof.

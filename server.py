@@ -39,9 +39,10 @@ def frontend_origins():
 
 def create_app(*, db_path=None, cue_db_path=None, seed=True, runtime_factory=AppRuntime, auto_start=False):
     origins = frontend_origins()
-    memory = MemoryStore(db_path or ROOT / "data" / "ambi.sqlite3")
+    data_root = Path(os.getenv("AMBI_DATA_DIR", str(ROOT / "data")))
+    memory = MemoryStore(db_path or data_root / "ambi.sqlite3")
     cue_path = cue_db_path or (Path(f"{db_path}.cues.sqlite3") if db_path is not None
-                               else ROOT / "data" / "ambi_cues.sqlite3")
+                               else data_root / "ambi_cues.sqlite3")
     cue_store = CueStore(cue_path)
     if seed:
         memory.seed_project()
@@ -92,13 +93,66 @@ def create_app(*, db_path=None, cue_db_path=None, seed=True, runtime_factory=App
                 return JSONResponse({"error": "Unknown endpoint"}, status_code=404)
             data = await body(request)
             result = {"ok": True}
-            if action == "start":
+            if action == "diagnostics":
+                import platform
+                import sys
+                snapshot = runtime.snapshot()
+                result.update(version=snapshot.get("version"), platform=platform.system(), bundled=bool(getattr(sys, "frozen", False)),
+                    session=snapshot["status"], permissions=runtime.permissions(), computer_enabled=runtime.computer_enabled,
+                    codex={key: runtime.codex.state.get(key) for key in ("available", "authenticated", "status", "model")},
+                    history={"messages": len(runtime.transcript), "activity": len(runtime.activity_log)})
+            elif action == "history":
+                before = data.get("before")
+                if before is not None and (not isinstance(before, int) or isinstance(before, bool) or before < 1):
+                    raise ValueError("Invalid history cursor.")
+                result.update(runtime.history_store.messages(before=before))
+            elif action == "start":
                 await runtime.start(observe_screen=data.get("observe_screen", True) is True)
             elif action == "stop":
                 await runtime.stop()
             elif action == "stop-task":
-                if runtime.worker:
-                    await runtime.worker.stop()
+                client_id = data.get("client_id")
+                if client_id is None or (runtime.job and runtime.job.get("client_id") == client_id):
+                    await runtime.stop_work()
+            elif action == "codex-connect":
+                await runtime.codex.connect()
+            elif action == "codex-login":
+                result["auth_url"] = await runtime.codex.login()
+            elif action == "codex-model":
+                model = data.get("model")
+                if model not in {row["id"] for row in runtime.codex.state["models"]}:
+                    raise ValueError("Choose an available Codex model.")
+                if runtime.codex.state["status"] in {"running", "approval-required"}:
+                    raise ValueError("Stop the task before changing models.")
+                runtime.codex.state["model"] = model
+            elif action == "codex-message":
+                await runtime.send_codex(data.get("text"), writable=data.get("writable") is True, new_thread=data.get("new_thread") is True,
+                                         client_id=str(data.get("client_id", ""))[:100])
+                result["job_id"] = runtime.job["id"]
+            elif action == "codex-approval":
+                await runtime.codex.approve(str(data.get("id", "")), str(data.get("decision", "")))
+            elif action == "workspace":
+                value = data.get("path")
+                if not isinstance(value, str) or not Path(value).expanduser().is_dir():
+                    raise ValueError("Choose an existing working folder.")
+                if runtime.job and runtime.job.get("status") == "running":
+                    raise ValueError("Stop the current task before changing folders.")
+                runtime.workspace = str(Path(value).expanduser().resolve())
+                runtime.workspace_notice = ""
+                runtime.codex_thread = None
+            elif action == "request-screen-permission":
+                import sys
+                if sys.platform != "darwin":
+                    raise ValueError("Screen permission requests are managed by your operating system.")
+                if runtime.status != "idle" or (runtime.job and runtime.job.get("status") == "running"):
+                    raise ValueError("Stop active tasks before changing permissions.")
+                from Quartz import CGRequestScreenCaptureAccess
+                result["granted"] = bool(CGRequestScreenCaptureAccess())
+            elif action == "computer-access":
+                enabled = data.get("enabled") is True
+                if runtime.status != "idle":
+                    raise ValueError("End the voice session before changing computer access.")
+                runtime.computer_enabled = enabled
             elif action == "message":
                 await runtime.send_text(str(data.get("text", "")))
             elif action == "focus":
@@ -159,7 +213,10 @@ def create_app(*, db_path=None, cue_db_path=None, seed=True, runtime_factory=App
             except ValueError as exc:
                 runtime.status, runtime.error = "error", str(exc)
         yield
-        await runtime.stop()
+        if hasattr(runtime, "shutdown"):
+            await runtime.shutdown()
+        else:
+            await runtime.stop()
         memory.close()
         cue_store.close()
 

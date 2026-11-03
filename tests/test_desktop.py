@@ -66,3 +66,12 @@ async def test_cancelled_queued_os_call_cannot_run_after_new_task(desktop):
     # A new capture serializes behind the stale click; it must not execute that click.
     await desktop.screenshot()
     desktop.gui.click.assert_not_called()
+
+
+async def test_windows_locked_desktop_blocks_input(desktop, monkeypatch):
+    import desktop as adapter
+    monkeypatch.setattr(adapter.platform, 'system', lambda: 'Windows')
+    monkeypatch.setattr(adapter, 'mac_permissions', lambda: {'Interactive desktop': False})
+    with pytest.raises(DesktopStopped, match='interactive Windows desktop'):
+        await desktop.click(10, 20, 'left')
+    desktop.gui.click.assert_not_called()

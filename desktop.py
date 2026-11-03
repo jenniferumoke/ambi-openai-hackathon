@@ -14,6 +14,7 @@ import math
 import platform
 import threading
 import time
+from uuid import uuid4
 from contextlib import contextmanager
 
 from agents.computer import AsyncComputer, Button, Environment
@@ -24,8 +25,23 @@ class DesktopStopped(RuntimeError):
     """A computer action was stopped or requires a safety review."""
 
 
+class DesktopTargetUnavailable(DesktopStopped):
+    """Recoverable targeting failure; no screen capture or input was sent."""
+
+
 def mac_permissions():
     """Return the macOS permissions needed for desktop control and screenshots."""
+    if platform.system() == "Linux":
+        from linux_session import session_checks
+        return session_checks()
+    if platform.system() == "Windows":
+        import ctypes
+        user32 = ctypes.windll.user32
+        user32.OpenInputDesktop.restype = ctypes.c_void_p
+        handle = user32.OpenInputDesktop(0, False, 1)
+        if handle:
+            user32.CloseDesktop(ctypes.c_void_p(handle))
+        return {"Interactive desktop": bool(handle)}
     if platform.system() != "Darwin":
         return {}
     import ctypes
@@ -43,7 +59,7 @@ def mac_permissions():
 
 class Desktop(AsyncComputer):
     """Translate SDK computer actions into serialized primary-display OS calls."""
-    def __init__(self):
+    def __init__(self, *, emit=None):
         # Lazy imports keep --help, audio diagnostics, and mock tests display-independent.
         import pyautogui
         import pyperclip
@@ -56,7 +72,9 @@ class Desktop(AsyncComputer):
         self._stopped = threading.Event()
         self._stopped.set()
         self._generation = 0
+        self._visual_target = None
         self._lock = threading.Lock()
+        self.emit = emit or (lambda *args, **kwargs: None)
 
     @property
     def environment(self) -> Environment:
@@ -74,6 +92,7 @@ class Desktop(AsyncComputer):
     def start(self):
         """Start a new task generation; stale actions from older tasks stay stopped."""
         self._generation += 1
+        self._visual_target = None
         self._stopped.clear()
 
     def stop(self):
@@ -84,6 +103,12 @@ class Desktop(AsyncComputer):
         """Reject cancelled or stale actions and respect the mouse-corner fail-safe."""
         if self._stopped.is_set() or generation != self._generation:
             raise DesktopStopped("Computer task stopped.")
+        if platform.system() == "Windows" and not all(mac_permissions().values()):
+            raise DesktopStopped("The interactive Windows desktop is unavailable. Unlock the PC and review the task before restarting it.")
+        if platform.system() == 'Darwin' and not all(mac_permissions().values()):
+            raise DesktopStopped('Mac computer permissions are unavailable. Review setup before resuming.')
+        if platform.system() == 'Linux' and not all(mac_permissions().values()):
+            raise DesktopStopped('Linux X11 desktop prerequisites are unavailable. Wayland control is not supported by this preview.')
         self.gui.failSafeCheck()
 
     async def _run(self, label, operation):
@@ -94,10 +119,31 @@ class Desktop(AsyncComputer):
             # Serialize OS calls, including calls that finish after async cancellation.
             with self._lock:
                 self._check(generation)
+                if self._visual_target and label != "open application":
+                    from mac_applications import visual_target_ready
+                    for _ in range(10):
+                        self._check(generation)
+                        if visual_target_ready(self._visual_target):
+                            break
+                        time.sleep(0.1)
+                    else:
+                        raise DesktopTargetUnavailable("Target app is not focused on the primary display. No screenshot or input was sent.")
                 print(f"[computer] {label}", flush=True)
                 return operation(generation)
 
-        return await asyncio.to_thread(execute)
+        step_id = uuid4().hex
+        self.emit("computer_step_started", step_id=step_id, label=label)
+        try:
+            result = await asyncio.to_thread(execute)
+        except BaseException as exc:
+            status = "cancelled" if isinstance(exc, asyncio.CancelledError) else "failed"
+            self.emit("computer_step_finished", step_id=step_id, status=status,
+                      detail="Action interrupted; earlier changes may remain." if status == "cancelled"
+                      else f"Action stopped ({type(exc).__name__}).")
+            raise
+        self.emit("computer_step_finished", step_id=step_id, status="completed",
+                  detail="Desktop operation returned. Task outcome still requires verification.")
+        return result
 
     def _point(self, x, y):
         width, height = self.dimensions
@@ -159,6 +205,22 @@ class Desktop(AsyncComputer):
             return base64.b64encode(buffer.getvalue()).decode("ascii")
 
         return await self._run("screenshot", capture)
+
+    async def open_application(self, application: str, *, bring_to_primary=False, exit_full_screen=False):
+        """Use native macOS launch/read-back within the same Stop boundary."""
+        if self.environment != "mac":
+            raise ValueError("Native application launch is available only on macOS.")
+        from mac_applications import open_application
+        def launch(generation):
+            self._visual_target = application
+            result = open_application(application, bring_to_primary=bring_to_primary, exit_full_screen=exit_full_screen,
+                                      check=lambda: self._check(generation))
+            self._check(generation)
+            self.emit('native_application_observed', **{key:result[key] for key in (
+                'application','installed','running','frontmost','activation_accepted','focused_window_move',
+                'visible_window_count','window_on_primary_display') if key in result})
+            return result
+        return await self._run("open application", launch)
 
     async def click(self, x: int, y: int, button: Button, *, keys=None):
         x, y = self._point(x, y)
