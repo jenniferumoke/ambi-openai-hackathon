@@ -1,0 +1,32 @@
+{
+  "duration": 30,
+  "chapters": [
+    [
+      0,
+      6.6,
+      "Hackathon origin"
+    ],
+    [
+      6.6,
+      16.3,
+      "Voice, local memory and desktop examples"
+    ],
+    [
+      16.3,
+      20.3,
+      "Visible control and Stop"
+    ],
+    [
+      20.3,
+      30,
+      "Prototype and open-source invitation"
+    ]
+  ],
+  "narrationSeconds": 24.800896,
+  "narrationTempo": 1,
+  "illustration": "illustration.png",
+  "footageSource": "../product-demo-2026-11-03/ambi-product-demo.mp4",
+  "source_sha256": "38f301b4914121f4ebba35a8a0b3261519d5d264b65329c737f05f8bc2b765cb",
+  "eventContext": "London Codex Community hackathon, 1 November 2026, supplied by project owner",
+  "captionTiming": "Phrase-level timing checked against captured narration; spelling is the verified requested script"
+}

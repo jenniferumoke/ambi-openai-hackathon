@@ -1,0 +1,27 @@
+1
+00:00:00,300 --> 00:00:02,970
+Meet Ambi, an open-source AI agent
+
+2
+00:00:02,970 --> 00:00:06,550
+built at the London Codex Community Hackathon on the first of November.
+
+3
+00:00:06,950 --> 00:00:11,750
+Powered by OpenAI, she brings voice and computer use together on Mac and Windows.
+
+4
+00:00:12,550 --> 00:00:15,950
+Useful context stays in local memory, so you can pick up where you left off.
+
+5
+00:00:16,650 --> 00:00:19,800
+Ask for help, watch her work, and stop a task with a click.
+
+6
+00:00:20,600 --> 00:00:21,950
+This is our working prototype.
+
+7
+00:00:22,800 --> 00:00:24,900
+Explore the code and help build what comes next.
