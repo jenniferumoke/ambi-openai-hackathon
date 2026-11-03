@@ -180,7 +180,8 @@ async def test_both_sidecars_share_context_preserve_delegation_and_fail_independ
                                 and event.output == "Verified the text on screen." for event in voice.sent_events))
         desktop.gui.click.assert_called_once_with(20, 30, button="left")
         assert len(worker_requests) == 2
-        assert worker_requests[0]["tools"] == [{"type": "computer"}]
+        assert worker_requests[0]["tools"][0] == {"type": "computer"}
+        assert worker_requests[0]["tools"][1]["name"] == "open_application"
         assert desktop.generation == initial_generation + 1
         assert {tool.name for tool in voice.connect_calls[0]["initial_model_settings"]["tools"]} == {
             "use_computer", "stop_computer", "exit_agent",

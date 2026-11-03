@@ -12,11 +12,15 @@ export function createPoseController({ now = () => performance.now(), schedule =
       }
       initialized = true;
       previousJob = job ? { id: job.id, status: job.status } : null;
-      if (state.status === 'connecting') return 'thinking';
       if (state.status === 'error') return 'recovering';
+      if (state.codex?.pending?.length || state.codex?.status === 'approval-required') return 'needsYou';
+      if (job?.status === 'running') return 'working';
+      if (job?.engine === 'codex' && now() < successUntil) return 'success';
+      if (state.status === 'connecting') return 'thinking';
       if (state.status !== 'connected') { successUntil = 0; return 'waiting'; }
       if (now() < successUntil) return 'success';
       if (state.suggestion) return 'needsYou';
+      if (state.microphone_enabled === false && ['ready', 'listening'].includes(state.phase)) return 'waiting';
       return { listening: 'listening', speaking: 'speaking', working: 'working', ready: 'listening' }[state.phase] || 'waiting';
     },
     dispose() { cancel(timer); },

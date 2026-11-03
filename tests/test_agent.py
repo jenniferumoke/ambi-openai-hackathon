@@ -67,7 +67,10 @@ async def test_real_sdk_sends_ga_computer_tool_executes_batch_and_returns_screen
     assert result == "Verified the text on screen."
     assert len(requests) == 2
     assert requests[0]["model"] == "gpt-6.1-terra"
-    assert requests[0]["tools"] == [{"type": "computer"}]
+    assert requests[0]["tools"][0] == {"type": "computer"}
+    native = requests[0]["tools"][1]
+    assert native["type"] == "function" and native["name"] == "open_application"
+    assert native["parameters"]["properties"]["application"]["enum"] == ["chrome", "safari", "tv", "textedit", "calculator"]
     assert requests[0]["store"] is False
     desktop.gui.click.assert_called_once_with(20, 30, button="left")
     desktop.gui.keyDown.assert_any_call("shift")

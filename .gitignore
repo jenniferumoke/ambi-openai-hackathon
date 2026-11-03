@@ -15,3 +15,9 @@ artifacts/
 .ruff_cache/
 
 docs/media/frames/
+desktop/macos/.build/
+
+desktop/linux/node_modules/
+desktop/windows/**/bin/
+desktop/windows/**/obj/
+desktop/windows/tools/*.exe

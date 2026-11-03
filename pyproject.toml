@@ -8,6 +8,7 @@ dependencies = [
     "openai==3.41.0",
     "pillow==13.0.0",
     "pyautogui==0.9.54",
+    "pyobjc-framework-applicationservices==12.2.2 ; sys_platform == 'darwin'",
     "pyobjc-framework-AVFoundation==12.2.2; sys_platform == 'darwin'",
     "pyperclip==1.11.0",
     "python-dotenv==1.2.4",

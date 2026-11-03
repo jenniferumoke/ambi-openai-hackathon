@@ -4,11 +4,17 @@ Usage: python3 ui/scripts/build-rive-controller.py SOURCE_PACK RIVE_CLI
 from pathlib import Path
 import shutil
 import subprocess
-import sys
 import tempfile
 import xml.etree.ElementTree as ET
+import argparse
 
-source, cli = map(lambda value: Path(value).resolve(), sys.argv[1:])
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('source', type=Path)
+parser.add_argument('cli', type=Path)
+parser.add_argument('--transparent', action='store_true', help='Remove only artboard background fills')
+parser.add_argument('--output', type=Path)
+args = parser.parse_args()
+source, cli = args.source.resolve(), args.cli.resolve()
 with tempfile.TemporaryDirectory(prefix='ambi-controller-') as temporary:
     root = Path(temporary)
     project = root / 'rebuild'
@@ -19,9 +25,18 @@ with tempfile.TemporaryDirectory(prefix='ambi-controller-') as temporary:
     shutil.copytree(source / 'ambi/assets', root / 'ambi/assets')
     artboards = {}
     for name in ('scene.rml', 'colours.rml'):
-        for artboard in ET.parse(project / name).findall('Artboard'):
+        tree = ET.parse(project / name)
+        for artboard in tree.findall('Artboard'):
+            if args.transparent:
+                for fill in artboard.findall('Fill'):
+                    artboard.remove(fill)
             artboards[artboard.get('name')] = artboard
+        tree.write(project / name, encoding='unicode')
     controller = ET.parse(source / 'ambi/controller.rml')
+    if args.transparent:
+        for artboard in controller.findall('Artboard'):
+            for fill in artboard.findall('Fill'):
+                artboard.remove(fill)
     for nested in controller.findall('.//NestedArtboard'):
         artboard = artboards[nested.get('name')]
         width, height = float(artboard.get('width')), float(artboard.get('height'))
@@ -36,6 +51,6 @@ with tempfile.TemporaryDirectory(prefix='ambi-controller-') as temporary:
     (project / 'rive.yaml').write_text('name: ambi-character-controller\nmain: Ambi\n')
     subprocess.run([str(cli), str(project), '--verify'], check=True)
     subprocess.run([str(cli), str(project), '--once'], check=True)
-    destination = Path(__file__).resolve().parents[1] / 'public/ambi.riv'
+    destination = args.output or Path(__file__).resolve().parents[1] / 'public/ambi.riv'
     shutil.copyfile(project / 'build/ambi-character-controller.riv', destination)
     print('Built v2 artwork with Ambi Controller:', destination)
