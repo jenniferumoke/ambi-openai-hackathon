@@ -147,3 +147,7 @@ The voice and computer worker began with an earlier [voice-computer-agent protot
 uv run pytest -q
 (cd ui && npm test && npm run build)
 ```
+
+## License
+
+Ambi’s original project code is available under the [MIT License](LICENSE). Third-party code, models and assets retain their own licenses.
